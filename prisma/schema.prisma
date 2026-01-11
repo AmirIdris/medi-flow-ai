@@ -12,10 +12,18 @@ datasource db {
 
 model User {
   id        String   @id @default(cuid())
-  clerkId   String   @unique
   email     String   @unique
+  password  String   // Hashed password
   name      String?
   imageUrl  String?
+  
+  // Email Verification
+  emailVerified            Boolean   @default(false)
+  emailVerificationToken   String?
+  
+  // Password Reset
+  passwordResetToken       String?
+  passwordResetExpires     DateTime?
   
   // Subscription Info
   plan      String   @default("FREE") // FREE, BASIC, PRO, UNLIMITED
@@ -36,7 +44,6 @@ model User {
   aiSummaries AISummary[]
   payments Payment[]
   
-  @@index([clerkId])
   @@index([email])
 }
 
