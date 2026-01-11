@@ -1,0 +1,146 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  name      String?
+  imageUrl  String?
+  
+  // Subscription Info
+  plan      String   @default("FREE") // FREE, BASIC, PRO, UNLIMITED
+  
+  // Usage Limits
+  downloadCount    Int      @default(0)
+  downloadLimit    Int      @default(5)
+  aiSummaryCount   Int      @default(0)
+  aiSummaryLimit   Int      @default(3)
+  resetDate        DateTime @default(now())
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  downloads Download[]
+  aiSummaries AISummary[]
+  payments Payment[]
+  
+  @@index([clerkId])
+  @@index([email])
+}
+
+model Download {
+  id       String   @id @default(cuid())
+  userId   String
+  
+  // Video Info
+  url      String
+  title    String?
+  thumbnail String?
+  duration Int?     // in seconds
+  author   String?
+  platform String   // youtube, tiktok, instagram, etc.
+  
+  // Download Info
+  format   String   @default("mp4")
+  quality  String   @default("720p")
+  fileSize BigInt?  // in bytes
+  fileUrl  String?
+  
+  // Status
+  status   String   @default("pending") // pending, processing, completed, failed
+  error    String?
+  
+  // Metadata
+  metadata Json?
+  expiresAt DateTime?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  aiSummaries AISummary[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AISummary {
+  id         String   @id @default(cuid())
+  userId     String
+  downloadId String?
+  
+  // Video Info
+  videoTitle String
+  videoUrl   String
+  
+  // AI Content
+  transcript String   @db.Text
+  summary    String   @db.Text
+  level      String   @default("MEDIUM") // SHORT, MEDIUM, DETAILED
+  
+  // Optional Analysis
+  keyPoints  Json?
+  topics     Json?
+  sentiment  String?
+  
+  // Status
+  status     String   @default("pending") // pending, transcribing, summarizing, completed, failed
+  error      String?
+  
+  // Timestamps
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  download Download? @relation(fields: [downloadId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([downloadId])
+  @@index([createdAt])
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  userId        String
+  
+  // Payment Info
+  amount        Float
+  currency      String   @default("USD")
+  provider      String   // stripe, chapa
+  status        String   @default("pending") // pending, processing, completed, failed, refunded
+  
+  // Plan Info
+  planName      String
+  transactionId String?  @unique
+  
+  // Metadata
+  metadata      Json?
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([status])
+  @@index([transactionId])
+  @@index([createdAt])
+}
