@@ -30,19 +30,34 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null;
     }
     
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        imageUrl: true,
-        emailVerified: true,
-        plan: true,
-      },
-    });
-    
-    return user;
+    try {
+      // Add a timeout wrapper to prevent hanging
+      const userPromise = prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          imageUrl: true,
+          emailVerified: true,
+          plan: true,
+        },
+      });
+      
+      // Race against a timeout
+      const timeoutPromise = new Promise<null>((resolve) => {
+        setTimeout(() => resolve(null), 3000); // 3 second timeout
+      });
+      
+      const user = await Promise.race([userPromise, timeoutPromise]);
+      
+      return user;
+    } catch (dbError) {
+      // If database query fails (e.g., schema not migrated), return null
+      // This allows the app to load even if database isn't ready
+      console.error("Database query error in getCurrentUser:", dbError);
+      return null;
+    }
   } catch (error) {
     console.error("Get current user error:", error);
     return null;

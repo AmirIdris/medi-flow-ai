@@ -1,12 +1,35 @@
 import OpenAI from "openai";
 
-if (!process.env.OPENAI_API_KEY) {
-  throw new Error("OPENAI_API_KEY is not defined");
+// Initialize OpenAI client lazily to prevent startup crashes
+let openaiInstance: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not defined. Please set it in your environment variables.");
+  }
+  
+  if (!openaiInstance) {
+    openaiInstance = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      timeout: 60000, // 60 second timeout for all requests
+      maxRetries: 2,
+    });
+  }
+  
+  return openaiInstance;
 }
 
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Export a proxy that lazily initializes the OpenAI client
+export const openai = new Proxy({} as OpenAI, {
+  get(_target, prop) {
+    const client = getOpenAI();
+    const value = client[prop as keyof OpenAI];
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
+  }
+}) as OpenAI;
 
 // Default model configurations
 export const OPENAI_MODELS = {

@@ -38,7 +38,7 @@ export function Navbar() {
               >
                 Home
               </Link>
-              {isAuthenticated && (
+              {!loading && isAuthenticated && (
                 <>
                   <Link 
                     href="/dashboard" 

@@ -7,7 +7,7 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { success: false, error: "Unauthorized" },
         { status: 401 }
       );
     }
@@ -25,9 +25,10 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Get user error:", error);
+    // Return success: false instead of error to prevent hanging
     return NextResponse.json(
-      { error: "Failed to get user" },
-      { status: 500 }
+      { success: false, error: "Failed to get user" },
+      { status: 200 } // Return 200 so client can handle it
     );
   }
 }

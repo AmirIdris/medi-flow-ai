@@ -1,17 +1,38 @@
 import { Redis } from "@upstash/redis";
 
-if (!process.env.UPSTASH_REDIS_REST_URL) {
-  throw new Error("UPSTASH_REDIS_REST_URL is not defined");
+// Initialize Redis client lazily to prevent startup crashes
+let redisInstance: Redis | null = null;
+
+function getRedis(): Redis {
+  if (!process.env.UPSTASH_REDIS_REST_URL) {
+    throw new Error("UPSTASH_REDIS_REST_URL is not defined. Please set it in your environment variables.");
+  }
+
+  if (!process.env.UPSTASH_REDIS_REST_TOKEN) {
+    throw new Error("UPSTASH_REDIS_REST_TOKEN is not defined. Please set it in your environment variables.");
+  }
+
+  if (!redisInstance) {
+    redisInstance = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+  }
+
+  return redisInstance;
 }
 
-if (!process.env.UPSTASH_REDIS_REST_TOKEN) {
-  throw new Error("UPSTASH_REDIS_REST_TOKEN is not defined");
-}
-
-export const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+// Create a proxy that lazily initializes Redis
+export const redis = new Proxy({} as Redis, {
+  get(_target, prop) {
+    const client = getRedis();
+    const value = client[prop as keyof Redis];
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
+  }
+}) as Redis;
 
 /**
  * Rate limiting helper
@@ -28,18 +49,45 @@ export async function rateLimit(
   const now = Date.now();
   const windowMs = window * 1000;
 
-  const count = await redis.incr(key);
+  try {
+    // Add timeout protection for Redis calls
+    const timeoutPromise = new Promise<{ success: boolean; remaining: number; reset: number }>((resolve) => {
+      setTimeout(() => {
+        // On timeout, allow the request but log the issue
+        console.warn(`Redis timeout for rate limit key: ${key}`);
+        resolve({
+          success: true, // Allow request on timeout to prevent blocking
+          remaining: limit,
+          reset: now + windowMs,
+        });
+      }, 3000); // 3 second timeout
+    });
 
-  if (count === 1) {
-    await redis.expire(key, window);
+    const redisPromise = (async () => {
+      const count = await redis.incr(key);
+
+      if (count === 1) {
+        await redis.expire(key, window);
+      }
+
+      const ttl = await redis.ttl(key);
+      const reset = now + (ttl * 1000);
+
+      return {
+        success: count <= limit,
+        remaining: Math.max(0, limit - count),
+        reset,
+      };
+    })();
+
+    return await Promise.race([redisPromise, timeoutPromise]);
+  } catch (error) {
+    console.error("Rate limit error:", error);
+    // On error, allow the request to prevent blocking
+    return {
+      success: true,
+      remaining: limit,
+      reset: now + windowMs,
+    };
   }
-
-  const ttl = await redis.ttl(key);
-  const reset = now + (ttl * 1000);
-
-  return {
-    success: count <= limit,
-    remaining: Math.max(0, limit - count),
-    reset,
-  };
 }

@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 export function MobileNav() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const { isAuthenticated, refetch } = useAuth();
+  const { isAuthenticated, loading, refetch } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -64,7 +64,7 @@ export function MobileNav() {
             Home
           </Link>
           
-          {isAuthenticated ? (
+          {!loading && isAuthenticated ? (
             <>
               <Link 
                 href="/dashboard" 

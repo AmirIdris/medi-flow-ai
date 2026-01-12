@@ -90,32 +90,47 @@ export async function fetchVideoInfo(url: string): Promise<VideoInfo> {
   
   const platform = detectPlatform(url);
   
-  // This is a placeholder - implement actual RapidAPI integration
-  // Different endpoints for different platforms
-  const response = await fetch(`https://${process.env.RAPIDAPI_HOST}/video/info`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-      "X-RapidAPI-Host": process.env.RAPIDAPI_HOST || "",
-    },
-    body: JSON.stringify({ url }),
-  });
+  // Create AbortController for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
   
-  if (!response.ok) {
-    throw new Error("Failed to fetch video information");
+  try {
+    // This is a placeholder - implement actual RapidAPI integration
+    // Different endpoints for different platforms
+    const response = await fetch(`https://${process.env.RAPIDAPI_HOST}/video/info`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+        "X-RapidAPI-Host": process.env.RAPIDAPI_HOST || "",
+      },
+      body: JSON.stringify({ url }),
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error("Failed to fetch video information");
+    }
+    
+    const data = await response.json();
+    
+    return {
+      title: data.title,
+      thumbnail: data.thumbnail,
+      duration: data.duration,
+      author: data.author,
+      platform,
+      url,
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Request timed out while fetching video information");
+    }
+    throw error;
   }
-  
-  const data = await response.json();
-  
-  return {
-    title: data.title,
-    thumbnail: data.thumbnail,
-    duration: data.duration,
-    author: data.author,
-    platform,
-    url,
-  };
 }
 
 /**
@@ -132,32 +147,47 @@ export async function downloadVideo(
   
   const videoInfo = await fetchVideoInfo(url);
   
-  // This is a placeholder - implement actual RapidAPI download integration
-  const response = await fetch(`https://${process.env.RAPIDAPI_HOST}/video/download`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-      "X-RapidAPI-Host": process.env.RAPIDAPI_HOST || "",
-    },
-    body: JSON.stringify({ url, format, quality }),
-  });
+  // Create AbortController for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for downloads
   
-  if (!response.ok) {
-    throw new Error("Failed to download video");
+  try {
+    // This is a placeholder - implement actual RapidAPI download integration
+    const response = await fetch(`https://${process.env.RAPIDAPI_HOST}/video/download`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+        "X-RapidAPI-Host": process.env.RAPIDAPI_HOST || "",
+      },
+      body: JSON.stringify({ url, format, quality }),
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error("Failed to download video");
+    }
+    
+    const data = await response.json();
+    
+    return {
+      id: data.id,
+      videoInfo,
+      downloadUrl: data.downloadUrl,
+      format,
+      quality,
+      fileSize: data.fileSize,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Request timed out while downloading video");
+    }
+    throw error;
   }
-  
-  const data = await response.json();
-  
-  return {
-    id: data.id,
-    videoInfo,
-    downloadUrl: data.downloadUrl,
-    format,
-    quality,
-    fileSize: data.fileSize,
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-  };
 }
 
 /**

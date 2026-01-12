@@ -35,13 +35,9 @@ export function useAuth(): UseAuthReturn {
       
       clearTimeout(timeoutId);
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setUser(data.user);
-        } else {
-          setUser(null);
-        }
+      const data = await response.json();
+      if (data.success && data.user) {
+        setUser(data.user);
       } else {
         setUser(null);
       }

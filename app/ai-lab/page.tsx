@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Navbar } from "@/components/shared/navbar";
 import { Footer } from "@/components/shared/footer";
 import { generateVideoSummary, getAISummaryStatus } from "@/actions/ai-action";
@@ -11,9 +11,34 @@ export default function AILabPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Clear any existing intervals/timeouts
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    
     setLoading(true);
     setError("");
     setResult(null);
@@ -23,38 +48,75 @@ export default function AILabPage() {
       
       if (!response.success) {
         setError(response.error || "Failed to generate summary");
+        setLoading(false);
+        return;
+      }
+      
+      if (!response.summaryId) {
+        setError("Failed to get summary ID");
+        setLoading(false);
         return;
       }
       
       // Poll for status
       const summaryId = response.summaryId;
-      const pollInterval = setInterval(async () => {
-        const statusResponse = await getAISummaryStatus(summaryId!);
+      let isCleanedUp = false;
+      
+      pollIntervalRef.current = setInterval(async () => {
+        if (isCleanedUp) return;
         
-        if (statusResponse.success && statusResponse.summary) {
-          const summary = statusResponse.summary;
+        try {
+          const statusResponse = await getAISummaryStatus(summaryId);
           
-          if (summary.status === "completed") {
-            setResult(summary);
-            clearInterval(pollInterval);
-            setLoading(false);
-          } else if (summary.status === "failed") {
-            setError(summary.error || "Failed to generate summary");
-            clearInterval(pollInterval);
-            setLoading(false);
+          if (statusResponse.success && statusResponse.summary) {
+            const summary = statusResponse.summary;
+            
+            if (summary.status === "completed") {
+              setResult(summary);
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+                pollIntervalRef.current = null;
+              }
+              if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+              }
+              setLoading(false);
+              isCleanedUp = true;
+            } else if (summary.status === "failed") {
+              setError(summary.error || "Failed to generate summary");
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+                pollIntervalRef.current = null;
+              }
+              if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+              }
+              setLoading(false);
+              isCleanedUp = true;
+            }
           }
+        } catch (err) {
+          console.error("Polling error:", err);
+          // Don't stop polling on individual errors, just log them
         }
       }, 2000);
       
       // Timeout after 5 minutes
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        if (loading) {
-          setError("Request timed out");
+      timeoutRef.current = setTimeout(() => {
+        if (!isCleanedUp) {
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+          setError("Request timed out after 5 minutes");
           setLoading(false);
+          isCleanedUp = true;
         }
       }, 300000);
     } catch (err) {
+      console.error("Submit error:", err);
       setError("An unexpected error occurred");
       setLoading(false);
     }
