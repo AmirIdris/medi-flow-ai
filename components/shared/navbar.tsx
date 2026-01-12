@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
-import { MobileNav } from "./mobile-nav";
 
 export function Navbar() {
   const router = useRouter();
@@ -23,87 +22,63 @@ export function Navbar() {
   };
   
   return (
-    <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="text-xl font-bold">
-              MediaFlow AI
-            </Link>
-            
-            <div className="hidden md:flex items-center gap-6">
-              <Link 
-                href="/" 
-                className="text-sm font-medium hover:text-primary transition-colors"
-              >
-                Home
-              </Link>
-              {!loading && isAuthenticated && (
+    <header className="sticky top-0 z-50 w-full border-b border-white/10 glass">
+      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="bg-primary p-1.5 rounded-lg flex items-center justify-center">
+            <span className="material-symbols-outlined text-white text-xl">layers</span>
+          </div>
+          <h2 className="text-white text-xl font-bold tracking-tight">MediaFlow AI</h2>
+        </div>
+        <nav className="hidden md:flex items-center gap-8">
+          <a className="text-sm font-medium text-slate-400 hover:text-white transition-colors" href="#">
+            Features
+          </a>
+          <a className="text-sm font-medium text-slate-400 hover:text-white transition-colors" href="#">
+            Pricing
+          </a>
+          <a className="text-sm font-medium text-slate-400 hover:text-white transition-colors" href="#">
+            FAQ
+          </a>
+        </nav>
+        <div className="flex items-center gap-3">
+          {!loading && (
+            <>
+              {isAuthenticated ? (
                 <>
-                  <Link 
-                    href="/dashboard" 
-                    className="text-sm font-medium hover:text-primary transition-colors"
+                  <button 
+                    onClick={handleLogout}
+                    className="hidden sm:flex text-sm font-semibold px-4 py-2 text-white hover:bg-white/5 rounded-lg transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                  <Link
+                    href="/dashboard"
+                    className="bg-primary hover:bg-primary/90 text-white text-sm font-bold px-5 py-2 rounded-lg transition-all shadow-lg shadow-primary/20"
                   >
                     Dashboard
                   </Link>
-                  <Link 
-                    href="/ai-lab" 
-                    className="text-sm font-medium hover:text-primary transition-colors"
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/sign-in"
+                    className="hidden sm:flex text-sm font-semibold px-4 py-2 text-white hover:bg-white/5 rounded-lg transition-colors"
                   >
-                    AI Lab
+                    Login
                   </Link>
-                  <Link 
-                    href="/history" 
-                    className="text-sm font-medium hover:text-primary transition-colors"
+                  <Link
+                    href="/sign-up"
+                    className="bg-primary hover:bg-primary/90 text-white text-sm font-bold px-5 py-2 rounded-lg transition-all shadow-lg shadow-primary/20"
                   >
-                    History
+                    Get Pro
                   </Link>
                 </>
               )}
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            {!loading && (
-              <>
-                {isAuthenticated ? (
-                  <div className="hidden md:flex items-center gap-4">
-                    <Link 
-                      href="/settings"
-                      className="text-sm font-medium hover:text-primary transition-colors"
-                    >
-                      {user?.name || user?.email}
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="text-sm font-medium hover:text-primary transition-colors"
-                    >
-                      Sign Out
-                    </button>
-                  </div>
-                ) : (
-                  <div className="hidden md:flex items-center gap-4">
-                    <Link 
-                      href="/sign-in"
-                      className="text-sm font-medium hover:text-primary transition-colors"
-                    >
-                      Sign In
-                    </Link>
-                    <Link 
-                      href="/sign-up"
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
-                    >
-                      Sign Up
-                    </Link>
-                  </div>
-                )}
-              </>
-            )}
-            
-            <MobileNav />
-          </div>
+            </>
+          )}
         </div>
       </div>
-    </nav>
+    </header>
   );
 }

@@ -3,12 +3,18 @@ import { getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), 5000); // 5 second timeout
+    });
+
+    const userPromise = getCurrentUser();
+    const user = await Promise.race([userPromise, timeoutPromise]);
 
     if (!user) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
-        { status: 401 }
+        { status: 200 } // Return 200 so client can handle it gracefully
       );
     }
 

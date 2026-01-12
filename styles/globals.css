@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -54,7 +57,11 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-slate-900 dark:text-slate-100 antialiased min-h-screen;
+    background-color: #0a0a14;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(240, 87%, 60%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(260, 80%, 50%, 0.15) 0px, transparent 50%);
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
@@ -62,6 +69,24 @@
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  
+  .glass {
+    background: rgba(28, 28, 39, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .bg-mesh {
+    background-color: #0a0a14;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(240, 87%, 60%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(260, 80%, 50%, 0.15) 0px, transparent 50%);
+  }
+  
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   }
 }
 

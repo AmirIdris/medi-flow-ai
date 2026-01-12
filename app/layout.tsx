@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Spline_Sans } from "next/font/google";
 import "@/styles/globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const splineSans = Spline_Sans({ 
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-display",
+});
 
 export const metadata: Metadata = {
-  title: "MediaFlow AI - Video Downloader & AI Summarizer",
-  description: "Download videos from multiple platforms and generate AI-powered summaries",
+  title: "MediaFlow AI - High-Quality Social Media Downloader",
+  description: "AI-powered social media downloader for high-quality video, audio, and images. Support for 100+ platforms with one-click processing.",
 };
 
 export default function RootLayout({
@@ -15,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className={`${splineSans.variable} font-display`}>
         {children}
       </body>
     </html>

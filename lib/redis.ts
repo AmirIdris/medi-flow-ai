@@ -64,20 +64,30 @@ export async function rateLimit(
     });
 
     const redisPromise = (async () => {
-      const count = await redis.incr(key);
+      try {
+        const count = await redis.incr(key);
 
-      if (count === 1) {
-        await redis.expire(key, window);
+        if (count === 1) {
+          await redis.expire(key, window);
+        }
+
+        const ttl = await redis.ttl(key);
+        const reset = now + (ttl * 1000);
+
+        return {
+          success: count <= limit,
+          remaining: Math.max(0, limit - count),
+          reset,
+        };
+      } catch (redisError) {
+        // If Redis is not configured or fails, allow the request
+        console.warn("Redis operation failed, allowing request:", redisError);
+        return {
+          success: true,
+          remaining: limit,
+          reset: now + windowMs,
+        };
       }
-
-      const ttl = await redis.ttl(key);
-      const reset = now + (ttl * 1000);
-
-      return {
-        success: count <= limit,
-        remaining: Math.max(0, limit - count),
-        reset,
-      };
     })();
 
     return await Promise.race([redisPromise, timeoutPromise]);

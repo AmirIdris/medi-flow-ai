@@ -31,51 +31,90 @@ export function Hero() {
       setLoading(false);
     }
   };
+
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setUrl(text);
+    } catch (err) {
+      console.error("Failed to read clipboard:", err);
+    }
+  };
   
   return (
-    <section className="py-20 px-4 bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-background">
-      <div className="container mx-auto max-w-4xl text-center space-y-8">
-        <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-          Download Videos &{" "}
-          <span className="text-primary">AI Summaries</span>
+    <section className="relative pt-20 pb-16 px-6 overflow-hidden">
+      <div className="max-w-4xl mx-auto text-center">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest mb-6">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+          </span>
+          Now with 4K AI Upscaling
+        </div>
+        <h1 className="text-4xl md:text-6xl font-black text-white leading-tight mb-6 tracking-tight">
+          Download Media from Anywhere, <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-violet-400">Instantly.</span>
         </h1>
-        
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Download videos from YouTube, TikTok, Instagram and more. 
-          Get AI-powered transcriptions and summaries instantly.
+        <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+          AI-powered social media downloader for high-quality video, audio, and images. 
+          Support for 100+ platforms with one-click processing.
         </p>
-        
-        <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-4">
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="Paste video URL here..."
-              className="flex-1 px-4 py-3 border rounded-md text-lg"
-              required
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-3 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50"
-            >
-              {loading ? "Processing..." : "Download"}
-            </button>
-          </div>
-          
+        {/* Tool Input */}
+        <div className="max-w-2xl mx-auto mb-12">
+          <form onSubmit={handleSubmit} className="relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-primary to-violet-600 rounded-xl blur opacity-25 group-focus-within:opacity-50 transition duration-1000"></div>
+            <div className="relative flex items-center p-2 rounded-xl glass border-white/20">
+              <div className="pl-4 pr-2 text-slate-500">
+                <span className="material-symbols-outlined">link</span>
+              </div>
+              <input
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="Paste your link here (YouTube, TikTok, Instagram...)"
+                className="w-full bg-transparent border-none text-white focus:ring-0 placeholder:text-slate-500 text-base md:text-lg py-4"
+                required
+              />
+              <div className="flex items-center gap-2 pr-1">
+                <button
+                  type="button"
+                  onClick={handlePaste}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-semibold rounded-lg border border-white/10 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-lg">content_paste</span>
+                  Paste
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-primary hover:bg-primary/90 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform active:scale-95 whitespace-nowrap disabled:opacity-50"
+                >
+                  {loading ? "Processing..." : "Download"}
+                </button>
+              </div>
+            </div>
+          </form>
           {error && (
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-red-400 mt-4">{error}</p>
           )}
-        </form>
-        
-        <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground">
-          <span>✓ YouTube</span>
-          <span>✓ TikTok</span>
-          <span>✓ Instagram</span>
-          <span>✓ Facebook</span>
-          <span>✓ Twitter</span>
-          <span>✓ More</span>
+        </div>
+        {/* Platform Logos */}
+        <div className="flex flex-wrap justify-center gap-4 md:gap-8 opacity-60">
+          <div className="flex items-center gap-2 text-white/80 hover:text-white transition-all cursor-default group">
+            <span className="material-symbols-outlined text-2xl group-hover:text-red-500">movie</span>
+            <span className="font-bold">YouTube</span>
+          </div>
+          <div className="flex items-center gap-2 text-white/80 hover:text-white transition-all cursor-default group">
+            <span className="material-symbols-outlined text-2xl group-hover:text-cyan-400">music_note</span>
+            <span className="font-bold">TikTok</span>
+          </div>
+          <div className="flex items-center gap-2 text-white/80 hover:text-white transition-all cursor-default group">
+            <span className="material-symbols-outlined text-2xl group-hover:text-pink-500">photo_camera</span>
+            <span className="font-bold">Instagram</span>
+          </div>
+          <div className="flex items-center gap-2 text-white/80 hover:text-white transition-all cursor-default group">
+            <span className="material-symbols-outlined text-2xl group-hover:text-blue-500">social_leaderboard</span>
+            <span className="font-bold">Facebook</span>
+          </div>
         </div>
       </div>
     </section>
