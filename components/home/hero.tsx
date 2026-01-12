@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { extractVideo } from "@/actions/download-action";
 
 export function Hero() {
   const [url, setUrl] = useState("");
@@ -15,27 +16,19 @@ export function Hero() {
     setError("");
     
     try {
-      // Extract video info and formats via API
-      const response = await fetch("/api/video/extract", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url }),
-      });
+      // Extract video info and formats via server action (no auth required)
+      const result = await extractVideo(url);
       
-      const data = await response.json();
-      
-      if (!response.ok || !data.success) {
-        setError(data.error || "Failed to extract video information");
+      if (!result.success) {
+        setError(result.error || "Failed to extract video information");
         return;
       }
       
       // Store video data in sessionStorage to pass to download page
       // The download page will use this data to show formats and trigger downloads
       sessionStorage.setItem("videoData", JSON.stringify({
-        videoInfo: data.videoInfo,
-        formats: data.formats,
+        videoInfo: result.videoInfo,
+        formats: result.formats,
         url,
       }));
       
@@ -43,8 +36,8 @@ export function Hero() {
       // In a real app, you might want to create a record first
       const tempId = `temp-${Date.now()}`;
       sessionStorage.setItem(`download-${tempId}`, JSON.stringify({
-        videoInfo: data.videoInfo,
-        formats: data.formats,
+        videoInfo: result.videoInfo,
+        formats: result.formats,
         url,
       }));
       

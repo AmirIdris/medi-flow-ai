@@ -94,15 +94,10 @@ export async function recordDownload(
 /**
  * Extract video info and formats (for use in client components)
  * This is a server action wrapper around the extract API
+ * Open to all users - no authentication required
  */
 export async function extractVideo(url: string) {
   try {
-    const currentUser = await getCurrentUser();
-    
-    if (!currentUser) {
-      return { success: false, error: "Unauthorized" };
-    }
-    
     // Validate URL
     const validation = validateVideoUrl(url);
     if (!validation.valid) {

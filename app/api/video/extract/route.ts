@@ -2,27 +2,32 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { validateVideoUrl, extractVideoWithFormats } from "@/services/video-service";
 import { rateLimit } from "@/lib/redis";
+import { headers } from "next/headers";
 
 /**
  * Extract video information with available formats and direct CDN URLs
  * Returns metadata and format options for client-side downloads
+ * Open to all users - no authentication required
  */
 export async function POST(req: Request) {
   try {
+    // Optional: Get user if authenticated (for better rate limiting)
     const user = await getCurrentUser();
     
-    if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    // Rate limiting - use user ID if authenticated, otherwise use IP address
+    const headersList = await headers();
+    const clientIp = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() 
+      || headersList.get("x-real-ip") 
+      || "unknown";
     
-    // Rate limiting
-    const rateLimitResult = await rateLimit(`extract:${user.id}`, 20, 60);
+    const rateLimitKey = user 
+      ? `extract:user:${user.id}` 
+      : `extract:ip:${clientIp}`;
+    
+    const rateLimitResult = await rateLimit(rateLimitKey, 20, 60);
     if (!rateLimitResult.success) {
       return NextResponse.json(
-        { error: "Rate limit exceeded" },
+        { error: "Rate limit exceeded. Please try again later." },
         { status: 429 }
       );
     }
