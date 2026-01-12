@@ -1,0 +1,368 @@
+/* 1. EXTERNAL IMPORTS MUST BE FIRST */
+@import url("https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700&display=swap");
+/* Import Material Symbols */
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200");
+
+/* 2. TAILWIND FRAMEWORK IMPORTS */
+@import "tailwindcss";
+/* Note: If 'tw-animate-css' causes issues, ensure it is installed or remove it. 
+   Tailwind v4 usually handles animations natively. */
+@import "tw-animate-css";
+
+/* 3. CUSTOM VARIANTS */
+@custom-variant dark (&:is(.dark *));
+
+/* 4. THEME CONFIGURATION */
+@theme inline {
+  /* Register the Design's Font */
+  --font-display: "Spline Sans", "sans-serif";
+  --font-sans: "Spline Sans", "sans-serif";
+
+  /* Map Standard Shadcn Colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Map Chart Colors */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Map Sidebar Colors */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Radius Settings */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* 5. ROOT VARIABLES */
+:root {
+  --radius: 0.25rem;
+
+  /* Light Mode Background: #f6f6f8 */
+  --background: oklch(0.98 0.002 240);
+  /* Foreground: Slate 900 */
+  --foreground: oklch(0.13 0.028 261);
+
+  /* Card: White */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.13 0.028 261);
+
+  /* Popover: White */
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.13 0.028 261);
+
+  /* PRIMARY: #4144f1 - Vibrant Purple-Blue */
+  --primary: oklch(0.52 0.22 275);
+  --primary-foreground: oklch(0.985 0 0);
+
+  /* Secondary: Slate 100 */
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+
+  /* Muted: Slate 100 */
+  --muted: oklch(0.97 0.01 240);
+  /* Muted Foreground: Slate Grey #64748b */
+  --muted-foreground: oklch(0.55 0.04 240);
+
+  /* Accent: Hover states */
+  --accent: oklch(0.97 0.01 240);
+  --accent-foreground: oklch(0.205 0 0);
+
+  /* Destructive: #dc2626 */
+  --destructive: oklch(0.57 0.2 27);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  /* Border: #e2e8f0 */
+  --border: oklch(0.92 0.02 240);
+  /* Input: #e2e8f0 */
+  --input: oklch(0.92 0.02 240);
+  /* Ring: Primary Purple-Blue */
+  --ring: oklch(0.52 0.22 275);
+
+  /* Sidebar (Light Mode) */
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.13 0.028 261);
+  --sidebar-primary: oklch(0.52 0.22 275);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0.01 240);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.92 0.02 240);
+  --sidebar-ring: oklch(0.52 0.22 275);
+
+  /* Charts */
+  --chart-1: oklch(0.52 0.22 275);
+  --chart-2: oklch(0.6 0.15 160);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+}
+
+.dark {
+  /* Dark Mode Background: #0a0a14 */
+  --background: oklch(0.08 0.02 260);
+  /* Foreground: White */
+  --foreground: oklch(0.985 0 0);
+
+  --card: oklch(0.12 0.02 260);
+  --card-foreground: oklch(0.985 0 0);
+
+  --popover: oklch(0.12 0.02 260);
+  --popover-foreground: oklch(0.985 0 0);
+
+  /* PRIMARY: #4144f1 - Slightly lighter for dark mode */
+  --primary: oklch(0.58 0.22 275);
+  --primary-foreground: oklch(0.985 0 0);
+
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.7 0.04 240);
+
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --border: oklch(0.25 0.03 260);
+  --input: oklch(0.25 0.03 260);
+  --ring: oklch(0.58 0.22 275);
+
+  --sidebar: oklch(0.08 0.02 260);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.58 0.22 275);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.25 0.03 260);
+  --sidebar-ring: oklch(0.58 0.22 275);
+}
+
+/* 6. BASE UTILITIES */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-display antialiased;
+  }
+
+  /* Helper for Material Symbols */
+  .material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+    font-size: 24px;
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1;
+  }
+
+  /* Hide default details marker */
+  details > summary {
+    list-style: none;
+  }
+
+  details > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* Style native browser date picker icon - constrain it to the input */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 1;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    margin-left: 0.5rem;
+  }
+
+  /* Ensure date inputs are properly contained and don't capture clicks outside their bounds */
+  input[type="date"] {
+    position: relative;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: visible;
+    /* Prevent the input from capturing clicks outside its container */
+    contain: layout style;
+  }
+
+  /* Ensure the date input container doesn't extend beyond its bounds */
+  input[type="date"]::before,
+  input[type="date"]::after {
+    content: none;
+    display: none;
+  }
+}
+
+/* Custom Scrollbar Styles */
+@layer utilities {
+  /* Webkit browsers (Chrome, Safari, Edge) */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 4px 0;
+  }
+
+  /* Light mode scrollbar - subtle grey that matches sidebar */
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: oklch(0.55 0.02 240 / 0.35);
+    border-radius: 2px;
+    transition: background-color 0.2s ease;
+  }
+
+  /* Show more prominently on hover/active */
+  .scrollbar-thin:hover::-webkit-scrollbar-thumb,
+  .scrollbar-thin:active::-webkit-scrollbar-thumb {
+    background-color: oklch(0.45 0.02 240 / 0.55);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: oklch(0.4 0.02 240 / 0.7);
+  }
+
+  /* Dark mode scrollbar */
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: oklch(0.45 0.04 240 / 0.45);
+  }
+
+  .dark .scrollbar-thin:hover::-webkit-scrollbar-thumb,
+  .dark .scrollbar-thin:active::-webkit-scrollbar-thumb {
+    background-color: oklch(0.5 0.04 240 / 0.65);
+  }
+
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: oklch(0.55 0.04 240 / 0.8);
+  }
+
+  /* Firefox */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.55 0.02 240 / 0.35) transparent;
+  }
+
+  .scrollbar-thin:hover {
+    scrollbar-color: oklch(0.45 0.02 240 / 0.55) transparent;
+  }
+
+  .dark .scrollbar-thin {
+    scrollbar-color: oklch(0.45 0.04 240 / 0.45) transparent;
+  }
+
+  .dark .scrollbar-thin:hover {
+    scrollbar-color: oklch(0.5 0.04 240 / 0.65) transparent;
+  }
+}
+
+/* UploadThing Button Styles */
+[data-ut-element="button"] {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  padding: 0.5rem 1rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  border-radius: 0.5rem !important;
+  transition: opacity 0.2s ease, background-color 0.2s ease !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  min-height: 2.5rem !important;
+  width: auto !important;
+}
+
+[data-ut-element="button"]:hover:not(:disabled) {
+  opacity: 0.9 !important;
+}
+
+[data-ut-element="button"]:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+[data-ut-element="button"]:focus-visible {
+  outline: 2px solid var(--ring) !important;
+  outline-offset: 2px !important;
+}
+
+/* Override UploadThing's default text-white */
+[data-ut-element="button"] label {
+  color: var(--primary-foreground) !important;
+}
+
+/* Select dropdown styling for dark mode */
+select {
+  color: var(--foreground);
+  background-color: var(--card);
+}
+
+select option {
+  background-color: var(--card);
+  color: var(--foreground);
+  padding: 0.5rem;
+}
+
+.dark select option {
+  background-color: var(--card);
+  color: var(--foreground);
+}
+
+/* Glass Morphism Utility */
+.glass {
+  background: rgba(28, 28, 39, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Mesh Gradient Background */
+.bg-mesh {
+  background-color: #0a0a14;
+  background-image: 
+    radial-gradient(at 0% 0%, hsla(240, 87%, 60%, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(260, 80%, 50%, 0.15) 0px, transparent 50%);
+}
+
+/* Light mode mesh background */
+:root:not(.dark) .bg-mesh {
+  background-color: #f6f6f8;
+  background-image: 
+    radial-gradient(at 0% 0%, hsla(240, 87%, 60%, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(260, 80%, 50%, 0.08) 0px, transparent 50%);
+}
