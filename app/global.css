@@ -71,6 +71,8 @@
 
   /* Light Mode Background: #f6f6f8 */
   --background: oklch(0.98 0.002 240);
+  --background-light: #f6f6f8;
+  --background-dark: #0a0a14;
   /* Foreground: Slate 900 */
   --foreground: oklch(0.13 0.028 261);
 
@@ -131,6 +133,8 @@
 .dark {
   /* Dark Mode Background: #0a0a14 */
   --background: oklch(0.08 0.02 260);
+  --background-light: #f6f6f8;
+  --background-dark: #0a0a14;
   /* Foreground: White */
   --foreground: oklch(0.985 0 0);
 

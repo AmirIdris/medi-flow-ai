@@ -6,26 +6,24 @@ import { rateLimit } from "@/lib/redis";
 import { 
   validateVideoUrl, 
   detectPlatform, 
-  fetchVideoInfo, 
-  downloadVideo 
+  extractVideoWithFormats 
 } from "@/services/video-service";
-import type { DownloadRequest } from "@/types";
+import type { DownloadRequest, VideoInfo, VideoFormatOption } from "@/types";
 
 /**
- * Process video download request
+ * Record download in history (metadata only - no file processing)
+ * Downloads happen client-side directly from CDN URLs
  */
-export async function processDownload(request: DownloadRequest) {
+export async function recordDownload(
+  url: string,
+  videoInfo: VideoInfo,
+  selectedFormat: VideoFormatOption
+) {
   try {
     const currentUser = await getCurrentUser();
     
     if (!currentUser) {
       return { success: false, error: "Unauthorized" };
-    }
-    
-    // Validate URL
-    const validation = validateVideoUrl(request.url);
-    if (!validation.valid) {
-      return { success: false, error: validation.error };
     }
     
     // Check rate limiting
@@ -53,87 +51,132 @@ export async function processDownload(request: DownloadRequest) {
       };
     }
     
-    // Detect platform
-    const platform = detectPlatform(request.url);
-    
-    // Create download record
+    // Create download record (metadata only)
     const download = await prisma.download.create({
       data: {
         userId: user.id,
-        url: request.url,
-        platform,
-        format: request.format || "mp4",
-        quality: request.quality || "720p",
-        status: "processing",
-      },
-    });
-    
-    // Process download in background
-    processDownloadInBackground(download.id, request).catch(console.error);
-    
-    return { 
-      success: true, 
-      downloadId: download.id,
-      message: "Download started" 
-    };
-  } catch (error) {
-    console.error("Download error:", error);
-    return { success: false, error: "Failed to process download" };
-  }
-}
-
-/**
- * Process download in background
- */
-async function processDownloadInBackground(
-  downloadId: string,
-  request: DownloadRequest
-) {
-  try {
-    // Fetch video info
-    const videoInfo = await fetchVideoInfo(request.url);
-    
-    // Download video - get direct download URL from RapidAPI
-    const result = await downloadVideo(
-      request.url,
-      request.format || "mp4",
-      request.quality || "720p"
-    );
-    
-    // Update download record with direct download URL
-    await prisma.download.update({
-      where: { id: downloadId },
-      data: {
+        url,
+        platform: videoInfo.platform,
+        format: selectedFormat.format,
+        quality: selectedFormat.quality,
         title: videoInfo.title,
         thumbnail: videoInfo.thumbnail,
         duration: videoInfo.duration,
         author: videoInfo.author,
-        fileUrl: result.downloadUrl, // Direct URL from RapidAPI/social media platform
-        fileSize: result.fileSize,
-        status: "completed",
-        expiresAt: result.expiresAt,
+        fileUrl: selectedFormat.url, // Store CDN URL for reference
+        fileSize: BigInt(selectedFormat.fileSize),
+        status: "completed", // Immediately completed since download is client-side
+        expiresAt: selectedFormat.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
     
     // Increment user download count
     await prisma.user.update({
-      where: { id: (await prisma.download.findUnique({ where: { id: downloadId } }))?.userId },
+      where: { id: user.id },
       data: {
         downloadCount: {
           increment: 1,
         },
       },
     });
-  } catch (error) {
-    console.error("Background download error:", error);
     
-    await prisma.download.update({
-      where: { id: downloadId },
-      data: {
-        status: "failed",
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-    });
+    return { 
+      success: true, 
+      downloadId: download.id,
+      message: "Download recorded" 
+    };
+  } catch (error) {
+    console.error("Record download error:", error);
+    return { success: false, error: "Failed to record download" };
+  }
+}
+
+/**
+ * Extract video info and formats (for use in client components)
+ * This is a server action wrapper around the extract API
+ */
+export async function extractVideo(url: string) {
+  try {
+    const currentUser = await getCurrentUser();
+    
+    if (!currentUser) {
+      return { success: false, error: "Unauthorized" };
+    }
+    
+    // Validate URL
+    const validation = validateVideoUrl(url);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+    
+    // Extract video with formats
+    const result = await extractVideoWithFormats(url);
+    
+    return {
+      success: true,
+      videoInfo: result.videoInfo,
+      formats: result.formats,
+    };
+  } catch (error) {
+    console.error("Extract video error:", error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to extract video" 
+    };
+  }
+}
+
+/**
+ * Legacy function - kept for backward compatibility
+ * Now just records metadata, actual download happens client-side
+ */
+export async function processDownload(request: DownloadRequest) {
+  try {
+    const currentUser = await getCurrentUser();
+    
+    if (!currentUser) {
+      return { success: false, error: "Unauthorized" };
+    }
+    
+    // Validate URL
+    const validation = validateVideoUrl(request.url);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+    
+    // Extract video info and formats
+    const extractResult = await extractVideoWithFormats(request.url);
+    
+    // Find the requested format or default to first available
+    const selectedFormat = extractResult.formats.find(
+      f => f.quality === (request.quality || "720p") && f.format === (request.format || "mp4")
+    ) || extractResult.formats[0];
+    
+    if (!selectedFormat) {
+      return { success: false, error: "No available formats found" };
+    }
+    
+    // Record download in history
+    const recordResult = await recordDownload(
+      request.url,
+      extractResult.videoInfo,
+      selectedFormat
+    );
+    
+    if (!recordResult.success) {
+      return recordResult;
+    }
+    
+    return {
+      success: true,
+      downloadId: recordResult.downloadId,
+      videoInfo: extractResult.videoInfo,
+      formats: extractResult.formats,
+      selectedFormat,
+    };
+  } catch (error) {
+    console.error("Process download error:", error);
+    return { success: false, error: "Failed to process download" };
   }
 }
 

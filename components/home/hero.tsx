@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { processDownload } from "@/actions/download-action";
 
 export function Hero() {
   const [url, setUrl] = useState("");
@@ -16,16 +15,43 @@ export function Hero() {
     setError("");
     
     try {
-      const result = await processDownload({ url });
+      // Extract video info and formats via API
+      const response = await fetch("/api/video/extract", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url }),
+      });
       
-      if (!result.success) {
-        setError(result.error || "Failed to process download");
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        setError(data.error || "Failed to extract video information");
         return;
       }
       
-      // Redirect to download page
-      router.push(`/download/${result.downloadId}`);
+      // Store video data in sessionStorage to pass to download page
+      // The download page will use this data to show formats and trigger downloads
+      sessionStorage.setItem("videoData", JSON.stringify({
+        videoInfo: data.videoInfo,
+        formats: data.formats,
+        url,
+      }));
+      
+      // Create a temporary download record ID for the page route
+      // In a real app, you might want to create a record first
+      const tempId = `temp-${Date.now()}`;
+      sessionStorage.setItem(`download-${tempId}`, JSON.stringify({
+        videoInfo: data.videoInfo,
+        formats: data.formats,
+        url,
+      }));
+      
+      // Navigate to download page
+      router.push(`/download/${tempId}`);
     } catch (err) {
+      console.error("Extract error:", err);
       setError("An unexpected error occurred");
     } finally {
       setLoading(false);

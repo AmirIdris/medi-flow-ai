@@ -42,6 +42,15 @@ export interface VideoInfo {
   url: string;
 }
 
+export interface VideoFormatOption {
+  quality: VideoQuality;
+  format: VideoFormat;
+  fileSize: number;
+  url: string; // Direct CDN URL for download
+  expiresAt?: Date; // URL expiration timestamp
+}
+
+// Keep old interface for backward compatibility
 export interface VideoFormat {
   quality: VideoQuality;
   format: VideoFormat;
@@ -73,6 +82,11 @@ export interface RapidAPIResponse {
     duration: number;
     author: string;
     downloadUrl: string;
-    formats?: VideoFormat[];
+    formats?: VideoFormatOption[];
   };
+}
+
+export interface VideoExtractResponse {
+  videoInfo: VideoInfo;
+  formats: VideoFormatOption[];
 }

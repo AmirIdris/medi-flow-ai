@@ -1,57 +1,191 @@
 "use client";
 
 import { useState } from "react";
-import type { VideoFormat, VideoQuality } from "@/types";
+import type { VideoFormat, VideoQuality, VideoFormatOption } from "@/types";
+import { formatFileSize } from "@/lib/utils";
 
 interface FormatPickerProps {
-  formats: Array<{ quality: VideoQuality; format: VideoFormat; fileSize: number }>;
-  onSelect: (quality: VideoQuality, format: VideoFormat) => void;
+  formats: VideoFormatOption[];
+  onSelect: (quality: VideoQuality, format: VideoFormat, formatOption: VideoFormatOption) => void;
+  selectedQuality?: VideoQuality;
+  selectedFormatType?: "video" | "audio";
 }
 
-export function FormatPicker({ formats, onSelect }: FormatPickerProps) {
+export function FormatPicker({ 
+  formats, 
+  onSelect, 
+  selectedQuality,
+  selectedFormatType = "video"
+}: FormatPickerProps) {
+  const [formatType, setFormatType] = useState<"video" | "audio">(selectedFormatType);
   const [selectedFormat, setSelectedFormat] = useState(formats[0]);
   
   const handleSelect = () => {
     onSelect(selectedFormat.quality, selectedFormat.format);
   };
+
+  // Filter formats based on type
+  const videoFormats = formats.filter(f => f.format === "mp4" || f.format === "webm");
+  const audioFormats = formats.filter(f => f.format === "mp3" || f.format === "m4a");
+  const availableFormats = formatType === "video" ? videoFormats : audioFormats;
+  
+  // Update selected format when format type changes
+  if (availableFormats.length > 0 && (!selectedFormat || !availableFormats.includes(selectedFormat))) {
+    setSelectedFormat(availableFormats[0]);
+  }
+
+  // Quality labels
+  const getQualityLabel = (quality: VideoQuality) => {
+    const labels: Record<VideoQuality, string> = {
+      "360p": "360p SD",
+      "480p": "480p SD",
+      "720p": "720p HD",
+      "1080p": "1080p Full HD",
+      "1440p": "1440p QHD",
+      "4k": "4K Ultra HD",
+      "audio": "High Quality Audio"
+    };
+    return labels[quality] || quality;
+  };
+
+  // Check if quality is PRO (1080p, 1440p, 4k)
+  const isProQuality = (quality: VideoQuality) => {
+    return quality === "1080p" || quality === "1440p" || quality === "4k";
+  };
+
+  // Get quality description
+  const getQualityDescription = (quality: VideoQuality, fileSize: number) => {
+    if (quality === "720p") return `Standard Quality • ${formatFileSize(fileSize)}`;
+    if (quality === "1080p") return `High Bitrate • ${formatFileSize(fileSize)}`;
+    if (quality === "4k") return `Cinematic • ${formatFileSize(fileSize)}`;
+    return `${formatFileSize(fileSize)}`;
+  };
   
   return (
-    <div className="space-y-4">
-      <h3 className="font-semibold">Choose Format & Quality</h3>
-      
-      <div className="space-y-2">
-        {formats.map((format, index) => (
-          <label
-            key={index}
-            className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-accent ${
-              selectedFormat === format ? "border-primary bg-accent" : ""
-            }`}
-          >
-            <input
-              type="radio"
-              name="format"
-              checked={selectedFormat === format}
-              onChange={() => setSelectedFormat(format)}
-              className="mr-3"
-            />
-            <div className="flex-1">
-              <div className="font-medium">
-                {format.quality} - {format.format.toUpperCase()}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {(format.fileSize / 1024 / 1024).toFixed(2)} MB
-              </div>
-            </div>
-          </label>
-        ))}
+    <div className="flex flex-col gap-6">
+      <div>
+        <h2 className="text-xl font-bold mb-1">Download Options</h2>
+        <p className="text-sm text-slate-500 dark:text-[#9d9db9]">Select your preferred quality and format</p>
       </div>
-      
-      <button
-        onClick={handleSelect}
-        className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90"
-      >
-        Download Selected Format
-      </button>
+
+      {/* Format Toggle */}
+      <div className="flex bg-slate-100 dark:bg-[#282839] p-1 rounded-xl h-12">
+        <label className="flex cursor-pointer h-full grow items-center justify-center rounded-lg px-2 has-[:checked]:bg-white dark:has-[:checked]:bg-background-dark has-[:checked]:shadow-sm text-slate-500 dark:text-[#9d9db9] has-[:checked]:text-primary dark:has-[:checked]:text-white transition-all">
+          <span className="text-sm font-bold flex items-center gap-2">
+            <span className="material-symbols-outlined !text-lg">videocam</span>
+            Video
+          </span>
+          <input
+            type="radio"
+            name="format"
+            value="video"
+            checked={formatType === "video"}
+            onChange={() => {
+              setFormatType("video");
+              if (videoFormats.length > 0) setSelectedFormat(videoFormats[0]);
+            }}
+            className="hidden"
+          />
+        </label>
+        <label className="flex cursor-pointer h-full grow items-center justify-center rounded-lg px-2 has-[:checked]:bg-white dark:has-[:checked]:bg-background-dark has-[:checked]:shadow-sm text-slate-500 dark:text-[#9d9db9] has-[:checked]:text-primary dark:has-[:checked]:text-white transition-all">
+          <span className="text-sm font-bold flex items-center gap-2">
+            <span className="material-symbols-outlined !text-lg">audiotrack</span>
+            Audio
+          </span>
+          <input
+            type="radio"
+            name="format"
+            value="audio"
+            checked={formatType === "audio"}
+            onChange={() => {
+              setFormatType("audio");
+              if (audioFormats.length > 0) setSelectedFormat(audioFormats[0]);
+            }}
+            className="hidden"
+          />
+        </label>
+      </div>
+
+      {/* Quality Grid */}
+      <div className="grid grid-cols-1 gap-3">
+        {availableFormats.length > 0 ? (
+          availableFormats.map((format, index) => {
+            const isSelected = selectedFormat === format;
+            const isPro = isProQuality(format.quality);
+            
+            return (
+              <button
+                key={index}
+                onClick={() => setSelectedFormat(format)}
+                className={`flex items-center justify-between p-4 rounded-xl border transition-all group relative overflow-hidden ${
+                  isSelected
+                    ? "border-2 border-primary/40 bg-primary/5 dark:bg-primary/10"
+                    : "border border-slate-200 dark:border-[#282839] hover:border-primary/50 bg-transparent"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`material-symbols-outlined ${
+                    isSelected ? "text-primary" : "text-slate-400 group-hover:text-primary"
+                  }`}>
+                    {format.quality === "4k" ? "4k" : format.quality === "1080p" ? "high_quality" : "hd"}
+                  </span>
+                  <div className="text-left">
+                    <p className="font-bold text-sm">{getQualityLabel(format.quality)}</p>
+                    <p className="text-xs text-slate-500 dark:text-[#9d9db9]">
+                      {getQualityDescription(format.quality, format.fileSize)}
+                    </p>
+                  </div>
+                </div>
+                {isPro ? (
+                  <div className="flex items-center gap-1 text-xs font-bold text-amber-500">
+                    <span className="material-symbols-outlined !text-sm fill-1">crown</span>
+                    <span>PRO</span>
+                  </div>
+                ) : (
+                  <span className="text-xs font-bold text-slate-400 bg-slate-100 dark:bg-[#282839] px-2 py-1 rounded">
+                    FREE
+                  </span>
+                )}
+                {isSelected && (
+                  <div className="absolute right-0 top-0 bottom-0 w-1 bg-primary"></div>
+                )}
+              </button>
+            );
+          })
+        ) : (
+          <div className="text-center py-4 text-slate-500 dark:text-[#9d9db9] text-sm">
+            No {formatType} formats available
+          </div>
+        )}
+      </div>
+
+      {/* AI Enhancements */}
+      <div className="pt-4 border-t border-slate-100 dark:border-[#282839] flex flex-col gap-4">
+        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 dark:text-[#9d9db9]">
+          AI Enhancements
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          <button className="flex items-center justify-center gap-2 p-3 rounded-lg bg-slate-100 dark:bg-[#282839] hover:bg-slate-200 dark:hover:bg-[#34344a] transition-colors text-xs font-bold">
+            <span className="material-symbols-outlined !text-lg text-primary">auto_awesome</span>
+            Summarize
+          </button>
+          <button className="flex items-center justify-center gap-2 p-3 rounded-lg bg-slate-100 dark:bg-[#282839] hover:bg-slate-200 dark:hover:bg-[#34344a] transition-colors text-xs font-bold">
+            <span className="material-symbols-outlined !text-lg text-primary">magic_button</span>
+            No Watermark
+          </button>
+        </div>
+      </div>
+
+      {/* Main CTA - triggers download when format is selected */}
+      {selectedFormat && selectedFormat.url && (
+        <button
+          onClick={() => onSelect(selectedFormat.quality, selectedFormat.format, selectedFormat)}
+          className="w-full h-14 bg-primary text-white font-bold rounded-xl flex items-center justify-center gap-3 hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
+        >
+          <span className="material-symbols-outlined">download</span>
+          Start Download
+        </button>
+      )}
     </div>
   );
 }
