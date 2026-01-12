@@ -1,5 +1,4 @@
 import { getUserProfile } from "@/actions/user-action";
-import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 
 export default async function SettingsPage() {
@@ -25,16 +24,27 @@ export default async function SettingsPage() {
           <h2 className="text-xl font-semibold">Account Information</h2>
           
           <div className="flex items-center space-x-4">
-            <UserButton 
-              appearance={{
-                elements: {
-                  avatarBox: "w-16 h-16",
-                },
-              }}
-            />
+            {user?.imageUrl ? (
+              <img
+                src={user.imageUrl}
+                alt={user?.name || "User"}
+                className="w-16 h-16 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <span className="text-2xl font-semibold text-primary">
+                  {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"}
+                </span>
+              </div>
+            )}
             <div>
-              <p className="font-medium">{user?.name}</p>
+              <p className="font-medium">{user?.name || "No name"}</p>
               <p className="text-sm text-muted-foreground">{user?.email}</p>
+              {!user?.emailVerified && (
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                  Email not verified
+                </p>
+              )}
             </div>
           </div>
           

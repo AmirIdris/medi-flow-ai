@@ -15,7 +15,6 @@ export type PaymentStatus =
 
 export interface UserProfile {
   id: string;
-  clerkId: string;
   email: string;
   name?: string;
   imageUrl?: string;

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs";
+import { getCurrentUser } from "@/lib/auth";
 import { validateVideoUrl, fetchVideoInfo } from "@/services/video-service";
 import { rateLimit } from "@/lib/redis";
 
@@ -9,9 +9,9 @@ import { rateLimit } from "@/lib/redis";
  */
 export async function POST(req: Request) {
   try {
-    const { userId } = auth();
+    const user = await getCurrentUser();
     
-    if (!userId) {
+    if (!user) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     }
     
     // Rate limiting
-    const rateLimitResult = await rateLimit(`extract:${userId}`, 20, 60);
+    const rateLimitResult = await rateLimit(`extract:${user.id}`, 20, 60);
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: "Rate limit exceeded" },

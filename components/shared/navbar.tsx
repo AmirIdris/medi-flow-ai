@@ -1,11 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { UserButton, useAuth } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
 import { MobileNav } from "./mobile-nav";
 
 export function Navbar() {
-  const { isSignedIn } = useAuth();
+  const router = useRouter();
+  const { isAuthenticated, user, loading, refetch } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+      router.push("/");
+      router.refresh();
+      refetch();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
   
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -23,7 +38,7 @@ export function Navbar() {
               >
                 Home
               </Link>
-              {isSignedIn && (
+              {isAuthenticated && (
                 <>
                   <Link 
                     href="/dashboard" 
@@ -49,23 +64,40 @@ export function Navbar() {
           </div>
           
           <div className="flex items-center gap-4">
-            {isSignedIn ? (
-              <UserButton afterSignOutUrl="/" />
-            ) : (
-              <div className="hidden md:flex items-center gap-4">
-                <Link 
-                  href="/sign-in"
-                  className="text-sm font-medium hover:text-primary transition-colors"
-                >
-                  Sign In
-                </Link>
-                <Link 
-                  href="/sign-up"
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
-                >
-                  Sign Up
-                </Link>
-              </div>
+            {!loading && (
+              <>
+                {isAuthenticated ? (
+                  <div className="hidden md:flex items-center gap-4">
+                    <Link 
+                      href="/settings"
+                      className="text-sm font-medium hover:text-primary transition-colors"
+                    >
+                      {user?.name || user?.email}
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="text-sm font-medium hover:text-primary transition-colors"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                ) : (
+                  <div className="hidden md:flex items-center gap-4">
+                    <Link 
+                      href="/sign-in"
+                      className="text-sm font-medium hover:text-primary transition-colors"
+                    >
+                      Sign In
+                    </Link>
+                    <Link 
+                      href="/sign-up"
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
+                    >
+                      Sign Up
+                    </Link>
+                  </div>
+                )}
+              </>
             )}
             
             <MobileNav />

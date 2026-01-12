@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@clerk/nextjs";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/redis";
 import { 
@@ -17,14 +17,14 @@ export async function generateVideoSummary(
   level: SummarizationLevel = "MEDIUM"
 ) {
   try {
-    const { userId } = auth();
+    const currentUser = await getCurrentUser();
     
-    if (!userId) {
+    if (!currentUser) {
       return { success: false, error: "Unauthorized" };
     }
     
     // Check rate limiting
-    const rateLimitResult = await rateLimit(`ai:${userId}`, 5, 60);
+    const rateLimitResult = await rateLimit(`ai:${currentUser.id}`, 5, 60);
     if (!rateLimitResult.success) {
       return { 
         success: false, 
@@ -34,7 +34,7 @@ export async function generateVideoSummary(
     
     // Get user and check limits
     const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
+      where: { id: currentUser.id },
     });
     
     if (!user) {
@@ -144,18 +144,10 @@ async function processAISummaryInBackground(
  */
 export async function getAISummaryStatus(summaryId: string) {
   try {
-    const { userId } = auth();
-    
-    if (!userId) {
-      return { success: false, error: "Unauthorized" };
-    }
-    
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
+    const user = await getCurrentUser();
     
     if (!user) {
-      return { success: false, error: "User not found" };
+      return { success: false, error: "Unauthorized" };
     }
     
     const summary = await prisma.aISummary.findFirst({
@@ -181,18 +173,10 @@ export async function getAISummaryStatus(summaryId: string) {
  */
 export async function getAISummaryHistory(limit: number = 20) {
   try {
-    const { userId } = auth();
-    
-    if (!userId) {
-      return { success: false, error: "Unauthorized" };
-    }
-    
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
+    const user = await getCurrentUser();
     
     if (!user) {
-      return { success: false, error: "User not found" };
+      return { success: false, error: "Unauthorized" };
     }
     
     const summaries = await prisma.aISummary.findMany({
@@ -213,18 +197,10 @@ export async function getAISummaryHistory(limit: number = 20) {
  */
 export async function deleteAISummary(summaryId: string) {
   try {
-    const { userId } = auth();
-    
-    if (!userId) {
-      return { success: false, error: "Unauthorized" };
-    }
-    
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
+    const user = await getCurrentUser();
     
     if (!user) {
-      return { success: false, error: "User not found" };
+      return { success: false, error: "Unauthorized" };
     }
     
     await prisma.aISummary.delete({

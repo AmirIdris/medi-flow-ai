@@ -1,6 +1,6 @@
 "use server";
 
-import { auth, currentUser } from "@clerk/nextjs";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type { UserPlan, UsageStats } from "@/types";
 
@@ -9,35 +9,22 @@ import type { UserPlan, UsageStats } from "@/types";
  */
 export async function getUserProfile() {
   try {
-    const { userId } = auth();
+    const user = await getCurrentUser();
     
-    if (!userId) {
+    if (!user) {
       return { success: false, error: "Unauthorized" };
     }
     
-    const clerkUser = await currentUser();
+    // Get full user data
+    const fullUser = await prisma.user.findUnique({
+      where: { id: user.id },
+    });
     
-    if (!clerkUser) {
+    if (!fullUser) {
       return { success: false, error: "User not found" };
     }
     
-    // Get or create user
-    let user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
-    
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          clerkId: userId,
-          email: clerkUser.emailAddresses[0]?.emailAddress || "",
-          name: `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim(),
-          imageUrl: clerkUser.imageUrl,
-        },
-      });
-    }
-    
-    return { success: true, user };
+    return { success: true, user: fullUser };
   } catch (error) {
     console.error("Get user profile error:", error);
     return { success: false, error: "Failed to get user profile" };
@@ -52,18 +39,10 @@ export async function updateUserProfile(data: {
   imageUrl?: string;
 }) {
   try {
-    const { userId } = auth();
-    
-    if (!userId) {
-      return { success: false, error: "Unauthorized" };
-    }
-    
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
+    const user = await getCurrentUser();
     
     if (!user) {
-      return { success: false, error: "User not found" };
+      return { success: false, error: "Unauthorized" };
     }
     
     const updatedUser = await prisma.user.update({
@@ -83,29 +62,29 @@ export async function updateUserProfile(data: {
  */
 export async function getUserLimits() {
   try {
-    const { userId } = auth();
+    const user = await getCurrentUser();
     
-    if (!userId) {
+    if (!user) {
       return { success: false, error: "Unauthorized" };
     }
     
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
+    const fullUser = await prisma.user.findUnique({
+      where: { id: user.id },
     });
     
-    if (!user) {
+    if (!fullUser) {
       return { success: false, error: "User not found" };
     }
     
     // Check if reset date has passed
     const now = new Date();
-    if (now > user.resetDate) {
+    if (now > fullUser.resetDate) {
       // Reset monthly limits
       const nextResetDate = new Date(now);
       nextResetDate.setMonth(nextResetDate.getMonth() + 1);
       
       await prisma.user.update({
-        where: { id: user.id },
+        where: { id: fullUser.id },
         data: {
           downloadCount: 0,
           aiSummaryCount: 0,
@@ -113,21 +92,21 @@ export async function getUserLimits() {
         },
       });
       
-      user.downloadCount = 0;
-      user.aiSummaryCount = 0;
-      user.resetDate = nextResetDate;
+      fullUser.downloadCount = 0;
+      fullUser.aiSummaryCount = 0;
+      fullUser.resetDate = nextResetDate;
     }
     
     const limits = {
-      canDownload: user.downloadLimit === -1 || user.downloadCount < user.downloadLimit,
-      canUseSummary: user.aiSummaryLimit === -1 || user.aiSummaryCount < user.aiSummaryLimit,
-      downloadsRemaining: user.downloadLimit === -1 ? -1 : Math.max(0, user.downloadLimit - user.downloadCount),
-      summariesRemaining: user.aiSummaryLimit === -1 ? -1 : Math.max(0, user.aiSummaryLimit - user.aiSummaryCount),
-      downloadCount: user.downloadCount,
-      downloadLimit: user.downloadLimit,
-      aiSummaryCount: user.aiSummaryCount,
-      aiSummaryLimit: user.aiSummaryLimit,
-      resetDate: user.resetDate,
+      canDownload: fullUser.downloadLimit === -1 || fullUser.downloadCount < fullUser.downloadLimit,
+      canUseSummary: fullUser.aiSummaryLimit === -1 || fullUser.aiSummaryCount < fullUser.aiSummaryLimit,
+      downloadsRemaining: fullUser.downloadLimit === -1 ? -1 : Math.max(0, fullUser.downloadLimit - fullUser.downloadCount),
+      summariesRemaining: fullUser.aiSummaryLimit === -1 ? -1 : Math.max(0, fullUser.aiSummaryLimit - fullUser.aiSummaryCount),
+      downloadCount: fullUser.downloadCount,
+      downloadLimit: fullUser.downloadLimit,
+      aiSummaryCount: fullUser.aiSummaryCount,
+      aiSummaryLimit: fullUser.aiSummaryLimit,
+      resetDate: fullUser.resetDate,
     };
     
     return { success: true, limits };
@@ -142,18 +121,10 @@ export async function getUserLimits() {
  */
 export async function updateUserPlan(plan: UserPlan) {
   try {
-    const { userId } = auth();
-    
-    if (!userId) {
-      return { success: false, error: "Unauthorized" };
-    }
-    
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
+    const user = await getCurrentUser();
     
     if (!user) {
-      return { success: false, error: "User not found" };
+      return { success: false, error: "Unauthorized" };
     }
     
     // Define plan limits
@@ -187,14 +158,14 @@ export async function updateUserPlan(plan: UserPlan) {
  */
 export async function getUserStats(): Promise<{ success: boolean; stats?: UsageStats; error?: string }> {
   try {
-    const { userId } = auth();
+    const user = await getCurrentUser();
     
-    if (!userId) {
+    if (!user) {
       return { success: false, error: "Unauthorized" };
     }
     
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
+    const fullUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: {
         downloads: {
           where: { status: "completed" },
@@ -205,7 +176,7 @@ export async function getUserStats(): Promise<{ success: boolean; stats?: UsageS
       },
     });
     
-    if (!user) {
+    if (!fullUser) {
       return { success: false, error: "User not found" };
     }
     
@@ -215,24 +186,24 @@ export async function getUserStats(): Promise<{ success: boolean; stats?: UsageS
     
     const downloadsThisMonth = await prisma.download.count({
       where: {
-        userId: user.id,
+        userId: fullUser.id,
         createdAt: { gte: firstDayOfMonth },
       },
     });
     
     const summariesThisMonth = await prisma.aISummary.count({
       where: {
-        userId: user.id,
+        userId: fullUser.id,
         createdAt: { gte: firstDayOfMonth },
       },
     });
     
     const totalDownloads = await prisma.download.count({
-      where: { userId: user.id },
+      where: { userId: fullUser.id },
     });
     
     const totalSummaries = await prisma.aISummary.count({
-      where: { userId: user.id },
+      where: { userId: fullUser.id },
     });
     
     const stats: UsageStats = {
@@ -241,7 +212,7 @@ export async function getUserStats(): Promise<{ success: boolean; stats?: UsageS
       downloadsThisMonth,
       summariesThisMonth,
       storageUsed: 0, // TODO: Calculate actual storage
-      lastActivity: user.downloads[0]?.createdAt || user.createdAt,
+      lastActivity: fullUser.downloads[0]?.createdAt || fullUser.createdAt,
     };
     
     return { success: true, stats };

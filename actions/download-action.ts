@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@clerk/nextjs";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/redis";
 import { 
@@ -16,9 +16,9 @@ import type { DownloadRequest } from "@/types";
  */
 export async function processDownload(request: DownloadRequest) {
   try {
-    const { userId } = auth();
+    const currentUser = await getCurrentUser();
     
-    if (!userId) {
+    if (!currentUser) {
       return { success: false, error: "Unauthorized" };
     }
     
@@ -29,7 +29,7 @@ export async function processDownload(request: DownloadRequest) {
     }
     
     // Check rate limiting
-    const rateLimitResult = await rateLimit(userId, 10, 60);
+    const rateLimitResult = await rateLimit(currentUser.id, 10, 60);
     if (!rateLimitResult.success) {
       return { 
         success: false, 
@@ -39,7 +39,7 @@ export async function processDownload(request: DownloadRequest) {
     
     // Get user and check limits
     const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
+      where: { id: currentUser.id },
     });
     
     if (!user) {
@@ -142,18 +142,10 @@ async function processDownloadInBackground(
  */
 export async function getDownloadStatus(downloadId: string) {
   try {
-    const { userId } = auth();
-    
-    if (!userId) {
-      return { success: false, error: "Unauthorized" };
-    }
-    
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
+    const user = await getCurrentUser();
     
     if (!user) {
-      return { success: false, error: "User not found" };
+      return { success: false, error: "Unauthorized" };
     }
     
     const download = await prisma.download.findFirst({
@@ -179,18 +171,10 @@ export async function getDownloadStatus(downloadId: string) {
  */
 export async function getDownloadHistory(limit: number = 20) {
   try {
-    const { userId } = auth();
-    
-    if (!userId) {
-      return { success: false, error: "Unauthorized" };
-    }
-    
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
+    const user = await getCurrentUser();
     
     if (!user) {
-      return { success: false, error: "User not found" };
+      return { success: false, error: "Unauthorized" };
     }
     
     const downloads = await prisma.download.findMany({
@@ -211,18 +195,10 @@ export async function getDownloadHistory(limit: number = 20) {
  */
 export async function deleteDownload(downloadId: string) {
   try {
-    const { userId } = auth();
-    
-    if (!userId) {
-      return { success: false, error: "Unauthorized" };
-    }
-    
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
+    const user = await getCurrentUser();
     
     if (!user) {
-      return { success: false, error: "User not found" };
+      return { success: false, error: "Unauthorized" };
     }
     
     await prisma.download.delete({

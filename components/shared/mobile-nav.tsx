@@ -1,12 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/hooks/use-auth";
 
 export function MobileNav() {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const { isSignedIn } = useAuth();
+  const { isAuthenticated, refetch } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+      setIsOpen(false);
+      router.push("/");
+      router.refresh();
+      refetch();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
   
   return (
     <div className="md:hidden">
@@ -48,7 +64,7 @@ export function MobileNav() {
             Home
           </Link>
           
-          {isSignedIn ? (
+          {isAuthenticated ? (
             <>
               <Link 
                 href="/dashboard" 
@@ -71,6 +87,19 @@ export function MobileNav() {
               >
                 History
               </Link>
+              <Link 
+                href="/settings" 
+                className="block py-2 hover:text-primary"
+                onClick={() => setIsOpen(false)}
+              >
+                Settings
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="block w-full text-left py-2 hover:text-primary"
+              >
+                Sign Out
+              </button>
             </>
           ) : (
             <>
