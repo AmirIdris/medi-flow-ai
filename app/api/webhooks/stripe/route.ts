@@ -49,7 +49,7 @@ export async function POST(req: Request) {
             status: "completed",
             planName,
             transactionId: session.id,
-            metadata: session.metadata,
+            metadata: session.metadata || undefined,
           },
         });
         

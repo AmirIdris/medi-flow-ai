@@ -3,8 +3,13 @@
  * Ethiopian payment processing
  */
 
-if (!process.env.CHAPA_SECRET_KEY) {
-  throw new Error("CHAPA_SECRET_KEY is not defined");
+// Only check in runtime, not at build time
+function getChapaSecretKey(): string {
+  const key = process.env.CHAPA_SECRET_KEY;
+  if (!key) {
+    throw new Error("CHAPA_SECRET_KEY is not defined");
+  }
+  return key;
 }
 
 const CHAPA_API_URL = "https://api.chapa.co/v1";
@@ -41,7 +46,7 @@ export async function initializePayment(
   const response = await fetch(`${CHAPA_API_URL}/transaction/initialize`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.CHAPA_SECRET_KEY}`,
+      Authorization: `Bearer ${getChapaSecretKey()}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(data),
@@ -61,7 +66,7 @@ export async function verifyPayment(txRef: string): Promise<any> {
   const response = await fetch(`${CHAPA_API_URL}/transaction/verify/${txRef}`, {
     method: "GET",
     headers: {
-      Authorization: `Bearer ${process.env.CHAPA_SECRET_KEY}`,
+      Authorization: `Bearer ${getChapaSecretKey()}`,
     },
   });
 

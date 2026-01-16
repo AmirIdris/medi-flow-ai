@@ -1,4 +1,5 @@
-import type { VideoProvider, VideoExtractResponse } from "./base-provider";
+import type { VideoProvider } from "./base-provider";
+import type { VideoExtractResponse } from "@/types";
 import { YtDlpProvider } from "./ytdlp-provider";
 import { detectPlatform } from "../video-service";
 

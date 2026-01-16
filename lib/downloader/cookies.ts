@@ -160,7 +160,7 @@ export class CookiePool {
    * Refresh cookie file info (check if files still exist)
    */
   refresh(): void {
-    for (const [platform, info] of this.cookies.entries()) {
+    for (const [platform, info] of Array.from(this.cookies.entries())) {
       const exists = fs.existsSync(info.filePath);
       if (exists) {
         info.exists = true;

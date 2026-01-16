@@ -150,12 +150,12 @@ export async function extractVideoMetadata(options: DownloadOptions): Promise<Do
   return new Promise((resolve) => {
     let stdout = "";
     let stderr = "";
-    let process: ChildProcess | null = null;
+    let childProcess: ChildProcess | null = null;
 
     // Timeout handler
     const timeoutId = setTimeout(() => {
-      if (process) {
-        process.kill("SIGTERM");
+      if (childProcess) {
+        childProcess.kill("SIGTERM");
       }
       resolve({
         success: false,
@@ -178,22 +178,22 @@ export async function extractVideoMetadata(options: DownloadOptions): Promise<Do
       }
 
       // Spawn process
-      process = spawn(command, commandArgs, {
+      childProcess = spawn(command, commandArgs, {
         stdio: ["ignore", "pipe", "pipe"],
       });
 
       // Collect stdout (JSON data)
-      process.stdout?.on("data", (chunk: Buffer) => {
+      childProcess.stdout?.on("data", (chunk: Buffer) => {
         stdout += chunk.toString();
       });
 
       // Collect stderr (errors)
-      process.stderr?.on("data", (chunk: Buffer) => {
+      childProcess.stderr?.on("data", (chunk: Buffer) => {
         stderr += chunk.toString();
       });
 
       // Handle process completion
-      process.on("close", (code) => {
+      childProcess.on("close", (code) => {
         clearTimeout(timeoutId);
 
         if (code === 0) {
@@ -240,7 +240,7 @@ export async function extractVideoMetadata(options: DownloadOptions): Promise<Do
       });
 
       // Handle process errors
-      process.on("error", (error) => {
+      childProcess.on("error", (error) => {
         clearTimeout(timeoutId);
         resolve({
           success: false,
@@ -291,12 +291,12 @@ export async function streamVideoFile(
 
   return new Promise((resolve) => {
     let stderr = "";
-    let process: ChildProcess | null = null;
+    let childProcess: ChildProcess | null = null;
 
     // Timeout handler
     const timeoutId = setTimeout(() => {
-      if (process) {
-        process.kill("SIGTERM");
+      if (childProcess) {
+        childProcess.kill("SIGTERM");
       }
       resolve({
         success: false,
@@ -319,7 +319,7 @@ export async function streamVideoFile(
       }
 
       // Spawn process
-      process = spawn(command, commandArgs, {
+      childProcess = spawn(command, commandArgs, {
         stdio: ["ignore", "pipe", "pipe"],
       });
 
@@ -329,7 +329,7 @@ export async function streamVideoFile(
       });
 
       // Handle process errors
-      process.on("error", (error) => {
+      childProcess.on("error", (error) => {
         clearTimeout(timeoutId);
         resolve({
           success: false,
@@ -346,7 +346,7 @@ export async function streamVideoFile(
       });
 
       // Handle process completion
-      process.on("close", (code) => {
+      childProcess.on("close", (code) => {
         clearTimeout(timeoutId);
 
         if (code !== 0) {
@@ -366,10 +366,10 @@ export async function streamVideoFile(
       });
 
       // Return stream immediately (don't wait for completion)
-      if (process.stdout) {
+      if (childProcess.stdout) {
         resolve({
           success: true,
-          stream: process.stdout,
+          stream: childProcess.stdout,
         });
       } else {
         resolve({

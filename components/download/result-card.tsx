@@ -329,7 +329,9 @@ export function ResultCard({ download, downloadId }: ResultCardProps) {
             }
           }
         } else if (download) {
-          originalUrl = download.url || "";
+          // Download model doesn't store original URL, skip recording for database downloads
+          // They're already recorded when initially downloaded
+          originalUrl = "";
         }
         
         if (originalUrl) {

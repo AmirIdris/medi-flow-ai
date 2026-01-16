@@ -9,6 +9,8 @@ export type {
   VideoFormat,
   VideoQuality,
   VideoInfo,
+  VideoFormatOption,
+  VideoExtractResponse,
   DownloadRequest,
   DownloadResult,
   RapidAPIResponse,

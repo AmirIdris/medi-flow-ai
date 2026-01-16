@@ -24,7 +24,7 @@ export function FormatPicker({
   const [selectedFormat, setSelectedFormat] = useState(mergedFormats[0] || formats[0]);
   
   const handleSelect = () => {
-    onSelect(selectedFormat.quality, selectedFormat.format);
+    onSelect(selectedFormat.quality, selectedFormat.format, selectedFormat);
   };
 
   // Filter formats - ONLY show merged formats (video + audio together)

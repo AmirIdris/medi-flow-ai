@@ -326,7 +326,7 @@ export async function extractVideoWithClients(
   }
 
   throw new Error(
-    `${errorMessage}\n\nSuggestions:\n${suggestions.map((s, i) => `${i + 1}. ${s}`).join("\n")}`
+    `${errorMessage}\n\nSuggestions:\n${suggestions.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")}`
   );
 }
 

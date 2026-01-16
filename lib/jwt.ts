@@ -1,10 +1,10 @@
-import jwt from "jsonwebtoken";
+import jwt, { SignOptions } from "jsonwebtoken";
 import { cookies } from "next/headers";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key-change-in-production";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
+const JWT_SECRET: string = process.env.JWT_SECRET || "your-secret-key-change-in-production";
+const JWT_REFRESH_SECRET: string = process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key-change-in-production";
+const JWT_EXPIRES_IN: string = process.env.JWT_EXPIRES_IN || "15m";
+const JWT_REFRESH_EXPIRES_IN: string = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
 
 export interface TokenPayload {
   userId: string;
@@ -20,9 +20,12 @@ export interface RefreshTokenPayload {
  */
 export function signToken(userId: string, email: string): string {
   const payload: TokenPayload = { userId, email };
+  if (!JWT_SECRET) {
+    throw new Error("JWT_SECRET is not configured");
+  }
   return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN,
-  });
+    expiresIn: JWT_EXPIRES_IN || "7d",
+  } as SignOptions);
 }
 
 /**
@@ -30,9 +33,12 @@ export function signToken(userId: string, email: string): string {
  */
 export function signRefreshToken(userId: string): string {
   const payload: RefreshTokenPayload = { userId };
+  if (!JWT_REFRESH_SECRET) {
+    throw new Error("JWT_REFRESH_SECRET is not configured");
+  }
   return jwt.sign(payload, JWT_REFRESH_SECRET, {
-    expiresIn: JWT_REFRESH_EXPIRES_IN,
-  });
+    expiresIn: JWT_REFRESH_EXPIRES_IN || "7d",
+  } as SignOptions);
 }
 
 /**
