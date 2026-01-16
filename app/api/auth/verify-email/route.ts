@@ -42,7 +42,11 @@ export async function GET(req: Request) {
     signInUrl.searchParams.set("verified", "true");
     return redirect(signInUrl.toString());
   } catch (error) {
-    console.error("Email verification error:", error);
+    // Suppress "Dynamic server usage" errors during build - these are expected
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (!errorMessage.includes("Dynamic server usage")) {
+      console.error("Email verification error:", error);
+    }
     return NextResponse.json(
       { error: "Failed to verify email" },
       { status: 500 }

@@ -59,7 +59,15 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null;
     }
   } catch (error) {
-    console.error("Get current user error:", error);
+    // Suppress "Dynamic server usage" errors during build - these are expected for pages using cookies
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isBuildTime = process.env.NEXT_PHASE === "phase-production-build";
+    const isDynamicServerError = errorMessage.includes("Dynamic server usage");
+    
+    // Only log if it's not a build-time dynamic server usage error
+    if (!isBuildTime || !isDynamicServerError) {
+      console.error("Get current user error:", error);
+    }
     return null;
   }
 }
