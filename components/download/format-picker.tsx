@@ -17,19 +17,27 @@ export function FormatPicker({
   selectedQuality,
   selectedFormatType = "video"
 }: FormatPickerProps) {
-  const [formatType, setFormatType] = useState<"video" | "audio">(selectedFormatType);
-  const [selectedFormat, setSelectedFormat] = useState(formats[0]);
+  // Filter out audio-only formats - we only want merged video+audio formats
+  const mergedFormats = formats.filter(f => f.quality !== "audio");
+  
+  const [formatType, setFormatType] = useState<"video" | "audio">("video"); // Always video (merged)
+  const [selectedFormat, setSelectedFormat] = useState(mergedFormats[0] || formats[0]);
   
   const handleSelect = () => {
     onSelect(selectedFormat.quality, selectedFormat.format);
   };
 
-  // Filter formats based on type
-  const videoFormats = formats.filter(f => f.format === "mp4" || f.format === "webm");
-  const audioFormats = formats.filter(f => f.format === "mp3" || f.format === "m4a");
-  const availableFormats = formatType === "video" ? videoFormats : audioFormats;
+  // Filter formats - ONLY show merged formats (video + audio together)
+  // Exclude audio-only formats (quality === "audio")
+  // Only show video formats that include audio (merged formats)
+  const videoFormats = mergedFormats.filter(f => 
+    f.format === "mp4" || f.format === "webm"
+  );
+  // Audio-only formats are excluded - we only want merged video+audio formats
+  const audioFormats: VideoFormatOption[] = []; // Empty - we don't show separate audio files
+  const availableFormats = videoFormats; // Always use video formats (merged with audio)
   
-  // Update selected format when format type changes
+  // Update selected format when formats change
   if (availableFormats.length > 0 && (!selectedFormat || !availableFormats.includes(selectedFormat))) {
     setSelectedFormat(availableFormats[0]);
   }
@@ -68,43 +76,18 @@ export function FormatPicker({
         <p className="text-sm text-slate-500 dark:text-[#9d9db9]">Select your preferred quality and format</p>
       </div>
 
-      {/* Format Toggle */}
-      <div className="flex bg-slate-100 dark:bg-[#282839] p-1 rounded-xl h-12">
-        <label className="flex cursor-pointer h-full grow items-center justify-center rounded-lg px-2 has-[:checked]:bg-white dark:has-[:checked]:bg-background-dark has-[:checked]:shadow-sm text-slate-500 dark:text-[#9d9db9] has-[:checked]:text-primary dark:has-[:checked]:text-white transition-all">
-          <span className="text-sm font-bold flex items-center gap-2">
-            <span className="material-symbols-outlined !text-lg">videocam</span>
-            Video
-          </span>
-          <input
-            type="radio"
-            name="format"
-            value="video"
-            checked={formatType === "video"}
-            onChange={() => {
-              setFormatType("video");
-              if (videoFormats.length > 0) setSelectedFormat(videoFormats[0]);
-            }}
-            className="hidden"
-          />
-        </label>
-        <label className="flex cursor-pointer h-full grow items-center justify-center rounded-lg px-2 has-[:checked]:bg-white dark:has-[:checked]:bg-background-dark has-[:checked]:shadow-sm text-slate-500 dark:text-[#9d9db9] has-[:checked]:text-primary dark:has-[:checked]:text-white transition-all">
-          <span className="text-sm font-bold flex items-center gap-2">
-            <span className="material-symbols-outlined !text-lg">audiotrack</span>
-            Audio
-          </span>
-          <input
-            type="radio"
-            name="format"
-            value="audio"
-            checked={formatType === "audio"}
-            onChange={() => {
-              setFormatType("audio");
-              if (audioFormats.length > 0) setSelectedFormat(audioFormats[0]);
-            }}
-            className="hidden"
-          />
-        </label>
-      </div>
+      {/* Format Toggle - Only show video option (merged formats with audio) */}
+      {/* Audio-only formats are hidden - we only provide merged video+audio files */}
+      {videoFormats.length > 0 && (
+        <div className="flex bg-slate-100 dark:bg-[#282839] p-1 rounded-xl h-12">
+          <label className="flex cursor-pointer h-full grow items-center justify-center rounded-lg px-2 bg-white dark:bg-background-dark shadow-sm text-primary dark:text-white">
+            <span className="text-sm font-bold flex items-center gap-2">
+              <span className="material-symbols-outlined !text-lg">videocam</span>
+              Video with Audio
+            </span>
+          </label>
+        </div>
+      )}
 
       {/* Quality Grid */}
       <div className="grid grid-cols-1 gap-3">

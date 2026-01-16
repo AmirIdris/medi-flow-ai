@@ -95,8 +95,10 @@ export async function recordDownload(
  * Extract video info and formats (for use in client components)
  * This is a server action wrapper around the extract API
  * Open to all users - no authentication required
+ * 
+ * Includes retry logic with exponential backoff for reliability
  */
-export async function extractVideo(url: string) {
+export async function extractVideo(url: string, retries: number = 2) {
   try {
     // Validate URL
     const validation = validateVideoUrl(url);
@@ -104,19 +106,69 @@ export async function extractVideo(url: string) {
       return { success: false, error: validation.error };
     }
     
-    // Extract video with formats
-    const result = await extractVideoWithFormats(url);
+    // Extract video with formats (with retry logic)
+    let lastError: Error | null = null;
     
-    return {
-      success: true,
-      videoInfo: result.videoInfo,
-      formats: result.formats,
-    };
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const result = await extractVideoWithFormats(url);
+        
+        return {
+          success: true,
+          videoInfo: result.videoInfo,
+          formats: result.formats,
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        // Don't retry on validation errors or user errors
+        if (
+          lastError.message.includes("Invalid URL") ||
+          lastError.message.includes("Unsupported platform") ||
+          lastError.message.includes("Video not found") ||
+          lastError.message.includes("age-restricted") ||
+          lastError.message.includes("region-locked") ||
+          lastError.message.includes("removed") ||
+          lastError.message.includes("private")
+        ) {
+          break; // Don't retry these errors
+        }
+        
+        // If this is not the last attempt, wait before retrying
+        if (attempt < retries) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 5000); // Exponential backoff, max 5s
+          if (process.env.NODE_ENV === "development") {
+            console.log(`[extractVideo] Attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+          }
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+    }
+    
+    // All retries failed
+    throw lastError || new Error("Failed to extract video after retries");
   } catch (error) {
     console.error("Extract video error:", error);
+    
+    // Format error message for user
+    let errorMessage = "Failed to extract video";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      
+      // Clean up technical error messages
+      if (errorMessage.includes("All video extraction providers failed")) {
+        errorMessage = "Unable to extract video. All extraction services are currently unavailable.";
+      } else if (errorMessage.includes("ECONNREFUSED") || errorMessage.includes("fetch failed")) {
+        errorMessage = "Unable to connect to video extraction service. Please try again in a few moments.";
+      } else if (errorMessage.includes("timeout") || errorMessage.includes("timed out")) {
+        errorMessage = "Request timed out. The video may be too large or the service is slow. Please try again.";
+      }
+    }
+    
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : "Failed to extract video" 
+      error: errorMessage
     };
   }
 }

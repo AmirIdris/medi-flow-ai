@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: mediaflow-ai
+    env: node
+    # Build command includes yt-dlp installation and updates
+    # Also installs FFmpeg if not available
+    buildCommand: |
+      npm install && 
+      (python3 -m pip install -U yt-dlp || pip3 install -U yt-dlp || python -m pip install -U yt-dlp || echo 'yt-dlp install skipped') &&
+      (ffmpeg -version || apt-get update && apt-get install -y ffmpeg || echo 'FFmpeg install skipped') &&
+      npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+    # Add these environment variables in Render dashboard:
+    # Required:
+    # - DATABASE_URL (PostgreSQL connection string)
+    # - UPSTASH_REDIS_REST_URL (Upstash Redis REST URL)
+    # - UPSTASH_REDIS_REST_TOKEN (Upstash Redis token)
+    # - NEXT_PUBLIC_APP_URL (your Render service URL, set after first deployment)
+    # Optional:
+    # - YTDLP_COOKIES_FILE (path to cookies.txt for YouTube)
+    # - JWT_SECRET (random secret for JWT)

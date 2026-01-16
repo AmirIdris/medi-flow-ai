@@ -45,7 +45,11 @@ export function Hero() {
       router.push(`/download/${tempId}`);
     } catch (err) {
       console.error("Extract error:", err);
-      setError("An unexpected error occurred");
+      // Extract the actual error message if available
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : "An unexpected error occurred";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -113,7 +117,93 @@ export function Hero() {
             </div>
           </form>
           {error && (
-            <p className="text-sm text-red-400 mt-4">{error}</p>
+            <div className="mt-4 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+              <div className="flex items-start gap-3">
+                <span className="material-symbols-outlined text-red-400 flex-shrink-0 mt-0.5">error</span>
+                <div className="flex-1">
+                  <p className="text-sm text-red-400 font-medium mb-2">Unable to Extract Video</p>
+                  
+                  {/* Format multi-line errors better */}
+                  {error.includes("\n") ? (
+                    <div className="text-sm text-red-300/90 leading-relaxed space-y-2">
+                      {error.split("\n").map((line, idx) => {
+                        // Skip empty lines
+                        if (!line.trim()) return null;
+                        
+                        // Format bullet points (both - and •)
+                        if (line.trim().startsWith("-") || line.trim().startsWith("•")) {
+                          const bulletContent = line.trim().startsWith("-") 
+                            ? line.trim().substring(1).trim()
+                            : line.trim().substring(1).trim();
+                          return (
+                            <div key={idx} className="ml-4 flex items-start gap-2">
+                              <span className="text-red-400 mt-1">•</span>
+                              <span>{bulletContent}</span>
+                            </div>
+                          );
+                        }
+                        
+                        // Format headers (lines ending with :)
+                        if (line.trim().endsWith(":")) {
+                          return (
+                            <p key={idx} className="font-semibold text-red-400 mt-2 first:mt-0">
+                              {line.trim()}
+                            </p>
+                          );
+                        }
+                        
+                        // Regular text
+                        return <p key={idx}>{line.trim()}</p>;
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-red-300/90 leading-relaxed">{error}</p>
+                  )}
+                  
+                  {/* Special handling for bot detection errors */}
+                  {error.includes("bot detection") && (
+                    <div className="mt-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                      <p className="text-xs text-yellow-300/90 font-medium mb-1">💡 What you can try:</p>
+                      <ul className="text-xs text-yellow-300/70 space-y-1 ml-4 list-disc">
+                        <li>Wait a few minutes and try again</li>
+                        <li>Try a different video URL</li>
+                        <li>Use cookies for more reliable access (see ytdlp-service/COOKIES_SETUP.md)</li>
+                        <li>Some videos may be age-restricted or region-locked</li>
+                        <li>Try a different video URL</li>
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {/* Special handling for yt-dlp setup suggestion */}
+                  {error.includes("yt-dlp service") && (
+                    <div className="mt-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                      <p className="text-xs text-blue-300/90 font-medium mb-1">💡 Setup yt-dlp for better reliability:</p>
+                      <p className="text-xs text-blue-300/70">
+                        See <code className="bg-blue-500/20 px-1 rounded">ytdlp-service/README.md</code> for deployment instructions.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Legacy RapidAPI setup (if still referenced) */}
+                  {error.includes("API subscription required") && (
+                    <div className="mt-3 text-xs text-red-300/70 space-y-1">
+                      <p className="font-medium">Quick Setup:</p>
+                      <ol className="list-decimal list-inside space-y-1 ml-2">
+                        <li>Visit <a href="https://rapidapi.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-red-200">RapidAPI</a> and search for "video downloader"</li>
+                        <li>Subscribe to an API (e.g., "all-in-one-video-downloader")</li>
+                        <li>Copy your API key and host from the dashboard</li>
+                        <li>Add them to your <code className="bg-red-500/20 px-1 rounded">.env</code> file:
+                          <pre className="mt-1 p-2 bg-red-500/10 rounded text-[10px] font-mono">
+                            RAPIDAPI_KEY=your_key_here{'\n'}
+                            RAPIDAPI_HOST=api-host.p.rapidapi.com
+                          </pre>
+                        </li>
+                      </ol>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
         </div>
         {/* Platform Logos */}

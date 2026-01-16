@@ -36,9 +36,16 @@ export function ResultCard({ download, downloadId }: ResultCardProps) {
   const [selectedFormat, setSelectedFormat] = useState<VideoFormat>("mp4");
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [availableFormats, setAvailableFormats] = useState<VideoFormatOption[]>([]);
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Set mounted flag to prevent hydration issues
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Load data from sessionStorage if it's a temporary ID
   useEffect(() => {
@@ -48,7 +55,12 @@ export function ResultCard({ download, downloadId }: ResultCardProps) {
         try {
           const data = JSON.parse(storedData);
           setVideoInfo(data.videoInfo);
-          setAvailableFormats(data.formats || []);
+          // Convert expiresAt strings back to Date objects
+          const formats = (data.formats || []).map((fmt: any) => ({
+            ...fmt,
+            expiresAt: fmt.expiresAt ? new Date(fmt.expiresAt) : undefined,
+          }));
+          setAvailableFormats(formats);
         } catch (err) {
           console.error("Failed to parse stored video data:", err);
         }
@@ -90,60 +102,217 @@ export function ResultCard({ download, downloadId }: ResultCardProps) {
 
     setIsDownloading(true);
     setDownloadProgress(0);
+    setDownloadError(null);
 
     try {
-      // Use fetch API to track download progress
-      const response = await fetch(formatOption.url, {
-        method: "GET",
-      });
-
-      if (!response.ok) {
-        throw new Error("Download failed");
+      // Get original video URL from sessionStorage for yt-dlp download
+      let originalUrl = "";
+      let useYtDlpDownload = false;
+      
+      if (downloadId && downloadId.startsWith("temp-")) {
+        const storedData = sessionStorage.getItem(`download-${downloadId}`);
+        if (storedData) {
+          try {
+            const data = JSON.parse(storedData);
+            originalUrl = data.url || "";
+            // Use yt-dlp download for YouTube videos (it handles CDN auth better)
+            useYtDlpDownload = originalUrl.includes("youtube.com") || originalUrl.includes("youtu.be");
+          } catch (err) {
+            console.error("Failed to get URL from stored data:", err);
+          }
+        }
+      }
+      
+      let response: Response;
+      
+      if (useYtDlpDownload && originalUrl) {
+        // Use yt-dlp download endpoint for YouTube (handles CDN authentication)
+        console.log("[Download] Using yt-dlp download for YouTube");
+        const downloadParams = new URLSearchParams({
+          url: originalUrl,
+          quality: formatOption.quality,
+          format: formatOption.format,
+        });
+        
+        const downloadUrl = `/api/video/download?${downloadParams.toString()}`;
+        response = await fetch(downloadUrl, {
+          method: "GET",
+        });
+      } else {
+        // Use proxy for non-YouTube or when original URL not available
+        console.log("[Download] Using proxy download");
+        
+        // Check if URL has expired
+        if (formatOption.expiresAt && new Date(formatOption.expiresAt) < new Date()) {
+          throw new Error("Video URL has expired. Please re-extract the video to get a fresh download link.");
+        }
+        
+        // Build proxy URL with referer if available
+        const proxyParams = new URLSearchParams({
+          url: formatOption.url,
+        });
+        
+        if (formatOption.referer) {
+          proxyParams.set("referer", formatOption.referer);
+        }
+        
+        if (formatOption.expiresAt) {
+          // Handle both Date objects and string dates (from sessionStorage)
+          const expiresAtDate = formatOption.expiresAt instanceof Date 
+            ? formatOption.expiresAt 
+            : new Date(formatOption.expiresAt);
+          proxyParams.set("expiresAt", expiresAtDate.toISOString());
+        }
+        
+        const proxyUrl = `/api/video/proxy?${proxyParams.toString()}`;
+        response = await fetch(proxyUrl, {
+          method: "GET",
+        });
       }
 
+      if (!response.ok) {
+        // Try to parse error response for better error messages
+        let errorMessage = `Download failed: ${response.status} ${response.statusText}`;
+        let errorDetails = "";
+        
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+          if (errorData.suggestion) {
+            errorDetails = errorData.suggestion;
+          }
+          if (errorData.type) {
+            // Add context based on error type
+            if (errorData.type === "expired_url") {
+              errorMessage = "Video URL has expired";
+              errorDetails = "Please re-extract the video to get a fresh download link.";
+            } else if (errorData.type === "domain_rejected") {
+              errorMessage = `Domain not allowed: ${errorData.domain || "unknown"}`;
+              errorDetails = "This domain is not in the allowed list for security reasons.";
+            } else if (errorData.type === "cdn_rejected") {
+              errorMessage = "Video URL rejected by CDN";
+              errorDetails = errorData.suggestion || "The video URL may have expired or the CDN is blocking the request. Try re-extracting the video.";
+            }
+          }
+        } catch {
+          // If response is not JSON, use default error message
+        }
+        
+        const fullError = errorDetails 
+          ? `${errorMessage}\n\n${errorDetails}`
+          : errorMessage;
+        
+        throw new Error(fullError);
+      }
+
+      // Get content type and length
+      const contentType = response.headers.get("content-type") || "video/mp4";
       const contentLength = response.headers.get("content-length");
       const total = contentLength ? parseInt(contentLength, 10) : 0;
 
-      const reader = response.body?.getReader();
-      const chunks: Uint8Array[] = [];
-
-      if (!reader) {
-        throw new Error("No response body");
-      }
-
-      let received = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
+      // Check if this is an M3U8/HLS playlist file (not an actual video)
+      // This should be filtered out by providers, but double-check here
+      const isPlaylist = contentType.includes("mpegurl") || 
+                        contentType.includes("x-mpegurl") ||
+                        contentType.includes("application/vnd.apple.mpegurl") ||
+                        formatOption.url.includes(".m3u8") ||
+                        formatOption.url.includes("m3u8");
+      
+      if (isPlaylist) {
+        console.error(`[Download] ERROR: M3U8/HLS playlist file detected! This should have been filtered out.`);
+        console.error(`[Download] Content-Type: ${contentType}, URL: ${formatOption.url}`);
         
-        if (done) break;
-
-        chunks.push(value);
-        received += value.length;
-
-        if (total > 0) {
-          const progress = Math.round((received / total) * 100);
-          setDownloadProgress(progress);
-        } else {
-          // Estimate progress if content-length not available
-          setDownloadProgress((prev) => Math.min(prev + 5, 95));
-        }
+        // Show error to user
+        alert(
+          "Error: This format is an HLS/M3U8 playlist (not a video file).\n\n" +
+          "Playlist files cannot be played directly. Please try a different quality/format option.\n\n" +
+          "The system should have filtered this out - this may indicate a provider configuration issue."
+        );
+        
+        setIsDownloading(false);
+        setDownloadProgress(0);
+        return;
       }
 
-      // Combine chunks and create blob
-      const blob = new Blob(chunks);
+      // Use response.blob() - this is more reliable than manual chunk reading
+      // It properly handles binary data and creates a blob correctly
+      console.log(`[Download] Starting download. Expected size: ${total} bytes, Content-Type: ${contentType}`);
+      
+      const blob = await response.blob();
+      
+      console.log(`[Download] Blob created. Size: ${blob.size} bytes, Type: ${blob.type}`);
+      
+      // Verify blob is valid
+      if (!blob || blob.size === 0) {
+        throw new Error("Downloaded file is empty or corrupted");
+      }
+      
+      // Verify blob size matches expected content length (if available)
+      if (total > 0 && blob.size !== total) {
+        console.warn(`[Download] Size mismatch! Expected: ${total} bytes, Got: ${blob.size} bytes`);
+        // Don't throw - sometimes content-length is approximate
+        // But log it for debugging
+      }
+      
+      // Verify blob type matches content type
+      if (blob.type && contentType && !blob.type.includes(contentType.split("/")[0])) {
+        console.warn(`[Download] Type mismatch! Expected: ${contentType}, Got: ${blob.type}`);
+      }
+      
+      // Basic validation: Check if blob has minimum size for a video file (at least 1KB)
+      if (blob.size < 1024) {
+        throw new Error(`Downloaded file is too small (${blob.size} bytes). The file may be corrupted or incomplete.`);
+      }
+      
+      // Try to read first few bytes to verify it's a video file
+      // MP4 files start with specific bytes, but we'll just check it's not empty text
+      try {
+        const firstChunk = await blob.slice(0, Math.min(100, blob.size)).arrayBuffer();
+        const bytes = new Uint8Array(firstChunk);
+        // Check if it looks like binary data (not all zeros or all same value)
+        const uniqueBytes = new Set(bytes);
+        if (uniqueBytes.size < 3 && bytes.length > 10) {
+          console.warn(`[Download] File might be corrupted - first bytes are suspicious: ${Array.from(bytes.slice(0, 20)).join(",")}`);
+        }
+      } catch (err) {
+        console.warn(`[Download] Could not verify file header:`, err);
+      }
+
+      // Create object URL from blob
       const url = window.URL.createObjectURL(blob);
+      
+      // Determine file extension from content type or format
+      const extension = formatOption.format || contentType.split("/")[1]?.split(";")[0] || "mp4";
+      const filename = videoInfo?.title 
+        ? `${videoInfo.title.replace(/[^a-z0-9]/gi, "_").substring(0, 50)}.${extension}`
+        : `video.${extension}`;
       
       // Create download link and trigger
       const a = document.createElement("a");
       a.href = url;
-      a.download = `video.${formatOption.format}`;
+      a.download = filename;
+      a.style.display = "none";
       document.body.appendChild(a);
+      
+      console.log(`[Download] Triggering download: ${filename} (${blob.size} bytes)`);
       a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      
+      // Clean up after download starts (give it time to initiate)
+      setTimeout(() => {
+        if (document.body.contains(a)) {
+          document.body.removeChild(a);
+        }
+        // Don't revoke URL immediately - browser needs it for download
+        // Revoke after a longer delay
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 10000); // 10 seconds should be enough for download to start
+      }, 1000);
 
       setDownloadProgress(100);
+      console.log(`[Download] Download initiated successfully`);
 
       // Record download in history if we have video info
       if (videoInfo) {
@@ -175,6 +344,8 @@ export function ResultCard({ download, downloadId }: ResultCardProps) {
       }, 2000);
     } catch (error) {
       console.error("Download error:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during download";
+      setDownloadError(errorMessage);
       setIsDownloading(false);
       setDownloadProgress(0);
     }
@@ -389,6 +560,33 @@ export function ResultCard({ download, downloadId }: ResultCardProps) {
               </div>
             )}
 
+            {/* Download Error Toast */}
+            {mounted && downloadError && !isDownloading && (
+              <div className="relative bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 rounded-xl p-4">
+                <div className="flex items-start gap-4">
+                  <div className="size-10 rounded-full bg-red-500 flex items-center justify-center text-white flex-shrink-0">
+                    <span className="material-symbols-outlined">error</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-red-800 dark:text-red-400 mb-2">Download Failed</p>
+                    <div className="text-xs text-red-700/90 dark:text-red-500/90 whitespace-pre-line">
+                      {downloadError.split('\n').map((line, index) => (
+                        <p key={index} className={index > 0 ? "mt-1" : ""}>
+                          {line}
+                        </p>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setDownloadError(null)}
+                      className="mt-3 text-xs text-red-600 dark:text-red-400 hover:underline"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Direct Download Link (if available from database record) */}
             {download?.fileUrl && !isDownloading && availableFormats.length === 0 && (
               <div className="bg-white dark:bg-[#1a1a2e] rounded-xl shadow-xl ring-1 ring-slate-200 dark:ring-white/10 p-6">
@@ -423,7 +621,4 @@ export function ResultCard({ download, downloadId }: ResultCardProps) {
         </div>
       </main>
     );
-  }
-
-  return null;
 }

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: ytdlp-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: CORS_ORIGIN
+        value: ${VERCEL_APP_URL}

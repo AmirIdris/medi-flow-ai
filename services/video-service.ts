@@ -1,4 +1,5 @@
-import type { Platform, VideoInfo, DownloadResult, VideoFormat, VideoQuality, VideoFormatOption, VideoExtractResponse } from "@/types";
+import type { Platform, VideoInfo, DownloadResult, VideoFormat, VideoQuality, VideoFormatOption, VideoExtractResponse } from "@/types/video";
+import { getProviderManager } from "./providers/provider-manager";
 
 /**
  * Detect platform from URL
@@ -83,144 +84,27 @@ export function extractVideoId(url: string, platform: Platform): string | null {
 /**
  * Extract video info and available formats with direct CDN URLs
  * This is the main function that returns everything needed for client-side downloads
+ * 
+ * Uses the provider manager to try multiple configured providers with automatic failover.
+ * 
+ * Setup Instructions:
+ * 1. Go to RapidAPI (https://rapidapi.com) and subscribe to a video downloader API
+ *    Popular options: "all-in-one-video-downloader", "social-media-video-downloader", "youtube-video-downloader"
+ * 2. Get your API key from RapidAPI dashboard
+ * 3. Get the API host (e.g., "all-in-one-video-downloader.p.rapidapi.com")
+ * 4. Set environment variables:
+ *    RAPIDAPI_KEY=your_api_key_here
+ *    RAPIDAPI_HOST=api-host-name.p.rapidapi.com
+ *    RAPIDAPI_ENDPOINT=/index.php (optional)
+ * 
+ * For multiple providers (failover support):
+ *    RAPIDAPI_2_KEY=secondary_key
+ *    RAPIDAPI_2_HOST=secondary-host.p.rapidapi.com
+ *    RAPIDAPI_2_ENDPOINT=/endpoint (optional)
  */
 export async function extractVideoWithFormats(url: string): Promise<VideoExtractResponse> {
-  if (!process.env.RAPIDAPI_KEY) {
-    throw new Error("RAPIDAPI_KEY is not configured");
-  }
-  
-  if (!process.env.RAPIDAPI_HOST) {
-    throw new Error("RAPIDAPI_HOST is not configured");
-  }
-  
-  const platform = detectPlatform(url);
-  
-  // Create AbortController for timeout
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-  
-  try {
-    // Use RapidAPI's all-in-one video downloader endpoint
-    // Most providers use GET with query params or POST with body
-    // Try POST first (most common), fallback to GET if needed
-    
-    // Build the API endpoint - common patterns:
-    // - /getVideoInfo?url=...
-    // - /video/info
-    // - /download
-    
-    const apiUrl = `https://${process.env.RAPIDAPI_HOST}/getVideoInfo`;
-    const urlParams = new URLSearchParams({ url });
-    
-    // Try POST method first (most common for RapidAPI video services)
-    let response = await fetch(`${apiUrl}?${urlParams}`, {
-      method: "GET",
-      headers: {
-        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-        "X-RapidAPI-Host": process.env.RAPIDAPI_HOST,
-      },
-      signal: controller.signal,
-    });
-    
-    // If GET fails, try POST with body
-    if (!response.ok && response.status === 405) {
-      response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-          "X-RapidAPI-Host": process.env.RAPIDAPI_HOST,
-        },
-        body: JSON.stringify({ url }),
-        signal: controller.signal,
-      });
-    }
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to extract video: ${response.status} ${errorText}`);
-    }
-    
-    const data = await response.json();
-    
-    // Parse response based on RapidAPI provider format
-    // Common formats:
-    // 1. { data: { title, thumbnail, formats: [{ quality, url, size }] } }
-    // 2. { title, thumbnail, videos: [{ quality, url, size }] }
-    // 3. { result: { title, thumbnail, links: [{ quality, url, size }] } }
-    
-    let videoInfo: VideoInfo;
-    let formats: VideoFormatOption[] = [];
-    
-    // Handle different response structures
-    if (data.data) {
-      videoInfo = {
-        title: data.data.title || data.title || "Untitled Video",
-        thumbnail: data.data.thumbnail || data.thumbnail || "",
-        duration: data.data.duration || data.duration || 0,
-        author: data.data.author || data.author || data.data.channel || "Unknown",
-        platform,
-        url,
-      };
-      
-      // Parse formats from response
-      if (data.data.formats || data.data.videos || data.data.links) {
-        const formatArray = data.data.formats || data.data.videos || data.data.links || [];
-        formats = formatArray.map((fmt: any) => ({
-          quality: mapQualityString(fmt.quality || fmt.resolution || fmt.label || "720p"),
-          format: mapFormatString(fmt.format || fmt.ext || "mp4"),
-          fileSize: fmt.size || fmt.filesize || fmt.file_size || 0,
-          url: fmt.url || fmt.link || fmt.downloadUrl || "",
-          expiresAt: fmt.expiresAt ? new Date(fmt.expiresAt) : new Date(Date.now() + 24 * 60 * 60 * 1000), // Default 24h
-        })).filter((fmt: VideoFormatOption) => fmt.url); // Only include formats with valid URLs
-      }
-    } else {
-      // Direct response structure
-      videoInfo = {
-        title: data.title || "Untitled Video",
-        thumbnail: data.thumbnail || "",
-        duration: data.duration || 0,
-        author: data.author || data.channel || "Unknown",
-        platform,
-        url,
-      };
-      
-      if (data.formats || data.videos || data.links) {
-        const formatArray = data.formats || data.videos || data.links || [];
-        formats = formatArray.map((fmt: any) => ({
-          quality: mapQualityString(fmt.quality || fmt.resolution || fmt.label || "720p"),
-          format: mapFormatString(fmt.format || fmt.ext || "mp4"),
-          fileSize: fmt.size || fmt.filesize || fmt.file_size || 0,
-          url: fmt.url || fmt.link || fmt.downloadUrl || "",
-          expiresAt: fmt.expiresAt ? new Date(fmt.expiresAt) : new Date(Date.now() + 24 * 60 * 60 * 1000),
-        })).filter((fmt: VideoFormatOption) => fmt.url);
-      }
-    }
-    
-    // If no formats returned, create a default one (fallback)
-    if (formats.length === 0 && data.downloadUrl) {
-      formats = [{
-        quality: "720p",
-        format: "mp4",
-        fileSize: data.fileSize || 0,
-        url: data.downloadUrl,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      }];
-    }
-    
-    return {
-      videoInfo,
-      formats,
-    };
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Request timed out while extracting video information");
-    }
-    throw error;
-  }
+  const providerManager = getProviderManager();
+  return providerManager.extractVideo(url);
 }
 
 /**
@@ -228,14 +112,24 @@ export async function extractVideoWithFormats(url: string): Promise<VideoExtract
  */
 function mapQualityString(quality: string): VideoQuality {
   const q = quality.toLowerCase();
-  if (q.includes("4k") || q.includes("2160")) return "4k";
+  
+  // Handle specific quality labels like "2160p50", "1440p50", "1080p50", "720p50"
+  if (q.includes("2160") || q.includes("4k")) return "4k";
   if (q.includes("1440") || q.includes("2k")) return "1440p";
   if (q.includes("1080")) return "1080p";
   if (q.includes("720")) return "720p";
   if (q.includes("480")) return "480p";
   if (q.includes("360")) return "360p";
-  if (q.includes("audio") || q.includes("sound")) return "audio";
-  return "720p"; // Default
+  if (q.includes("240")) return "360p"; // Map 240p to 360p as fallback
+  if (q.includes("144")) return "360p"; // Map 144p to 360p as fallback
+  
+  // Handle audio formats
+  if (q.includes("audio") || q.includes("sound") || q.includes("m4a") || q.includes("opus") || q.includes("mp3")) {
+    return "audio";
+  }
+  
+  // Default fallback
+  return "720p";
 }
 
 /**

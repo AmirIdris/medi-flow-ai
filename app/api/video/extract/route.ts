@@ -64,18 +64,47 @@ export async function POST(req: Request) {
     
     // Provide more specific error messages
     if (error instanceof Error) {
-      if (error.message.includes("RAPIDAPI")) {
+      // Check for configuration errors
+      if (error.message.includes("RAPIDAPI_KEY is not configured") || error.message.includes("RAPIDAPI_HOST is not configured")) {
         return NextResponse.json(
-          { error: "Video service configuration error. Please contact support." },
+          { error: "Video service is not configured. Please set RAPIDAPI_KEY and RAPIDAPI_HOST environment variables." },
           { status: 500 }
         );
       }
-      if (error.message.includes("timeout")) {
+      
+      // Check for subscription/authentication errors
+      if (error.message.includes("API subscription required") || error.message.includes("403")) {
+        return NextResponse.json(
+          { error: "API subscription required. Please subscribe to the video downloader API on RapidAPI and check your configuration." },
+          { status: 403 }
+        );
+      }
+      
+      // Check for invalid API key
+      if (error.message.includes("Invalid API key") || error.message.includes("401")) {
+        return NextResponse.json(
+          { error: "Invalid API key. Please check your RAPIDAPI_KEY environment variable." },
+          { status: 401 }
+        );
+      }
+      
+      // Check for endpoint errors
+      if (error.message.includes("API endpoint not found") || error.message.includes("404")) {
+        return NextResponse.json(
+          { error: "API endpoint not found. Please check your RAPIDAPI_HOST environment variable and ensure the endpoint path is correct." },
+          { status: 404 }
+        );
+      }
+      
+      // Check for timeout
+      if (error.message.includes("timeout") || error.message.includes("AbortError")) {
         return NextResponse.json(
           { error: "Request timed out. Please try again." },
           { status: 504 }
         );
       }
+      
+      // Return the error message for other cases
       return NextResponse.json(
         { error: error.message || "Failed to extract video information" },
         { status: 500 }

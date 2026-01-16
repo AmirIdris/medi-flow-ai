@@ -48,10 +48,11 @@ export interface VideoFormatOption {
   fileSize: number;
   url: string; // Direct CDN URL for download
   expiresAt?: Date; // URL expiration timestamp
+  referer?: string; // Referer URL to use when downloading (e.g., platform origin URL)
 }
 
-// Keep old interface for backward compatibility
-export interface VideoFormat {
+// Legacy format interface (deprecated - use VideoFormatOption instead)
+export interface LegacyVideoFormat {
   quality: VideoQuality;
   format: VideoFormat;
   fileSize: number;
