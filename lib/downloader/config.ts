@@ -406,14 +406,92 @@ export function getEnvironmentInfo(): {
 
 // Export singleton config instance
 let configInstance: DownloaderConfig | null = null;
+let lastConfigCheck = 0;
+const CONFIG_CACHE_TTL = 60000; // 1 minute cache
 
 /**
- * Get cached config instance
+ * Verify yt-dlp command actually works at runtime
+ */
+function verifyYtDlpCommand(command: string[]): boolean {
+  try {
+    const enhancedEnv = getEnhancedEnv();
+    execFileSync(command[0], [...command.slice(1), "--version"], {
+      timeout: 3000,
+      stdio: "pipe",
+      env: enhancedEnv,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Attempt to install yt-dlp at runtime (last resort)
+ */
+async function attemptRuntimeInstall(): Promise<boolean> {
+  if (process.env.RENDER || process.env.NODE_ENV === "production") {
+    // Only attempt in production environments
+    try {
+      const pythonCmds = ["python3", "python"];
+      for (const pythonCmd of pythonCmds) {
+        try {
+          const enhancedEnv = getEnhancedEnv();
+          execFileSync(pythonCmd, ["-m", "pip", "install", "--user", "--upgrade", "yt-dlp"], {
+            timeout: 30000, // 30 seconds for installation
+            stdio: "pipe",
+            env: enhancedEnv,
+          });
+          
+          // Verify installation
+          if (verifyYtDlpCommand([pythonCmd, "-m", "yt_dlp"])) {
+            console.log(`[DownloaderConfig] Successfully installed yt-dlp via ${pythonCmd}`);
+            return true;
+          }
+        } catch {
+          continue;
+        }
+      }
+    } catch (error) {
+      console.error(`[DownloaderConfig] Failed to install yt-dlp: ${error}`);
+    }
+  }
+  return false;
+}
+
+/**
+ * Get cached config instance with runtime verification
  */
 export function getConfig(): DownloaderConfig {
-  if (!configInstance) {
+  const now = Date.now();
+  
+  // Re-detect if cache is stale or if we're on Render (environment might change)
+  if (!configInstance || (now - lastConfigCheck > CONFIG_CACHE_TTL) || process.env.RENDER) {
     configInstance = getDownloaderConfig();
+    lastConfigCheck = now;
+    
+    // Verify the detected command actually works
+    if (!verifyYtDlpCommand(configInstance.ytDlpCommand)) {
+      if (process.env.RENDER || process.env.NODE_ENV === "production") {
+        console.warn(`[DownloaderConfig] Detected yt-dlp command failed verification: ${configInstance.ytDlpCommand.join(" ")}`);
+        console.warn(`[DownloaderConfig] Attempting to re-detect...`);
+        
+        // Clear cache and re-detect
+        configInstance = null;
+        configInstance = getDownloaderConfig();
+        lastConfigCheck = now;
+        
+        // If still not working, attempt installation (async, don't block)
+        if (!verifyYtDlpCommand(configInstance.ytDlpCommand)) {
+          console.warn(`[DownloaderConfig] yt-dlp still not found after re-detection`);
+          attemptRuntimeInstall().catch(err => {
+            console.error(`[DownloaderConfig] Runtime installation failed: ${err}`);
+          });
+        }
+      }
+    }
   }
+  
   return configInstance;
 }
 

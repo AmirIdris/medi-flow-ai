@@ -137,6 +137,7 @@ function buildYtDlpArgs(options: DownloadOptions): string[] {
  * Execute yt-dlp and return JSON data (for metadata extraction)
  */
 export async function extractVideoMetadata(options: DownloadOptions): Promise<DownloadResult> {
+  // Get config with runtime verification (will re-detect if needed)
   const config = getConfig();
   const timeout = options.timeout || config.timeout;
 
