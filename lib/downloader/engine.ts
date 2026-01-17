@@ -173,14 +173,20 @@ export async function extractVideoMetadata(options: DownloadOptions): Promise<Do
     }, timeout);
 
     try {
-      if (process.env.NODE_ENV === "development") {
+      const enhancedEnv = getEnhancedEnv();
+      
+      if (process.env.NODE_ENV === "development" || process.env.RENDER) {
         console.log(`[DownloadEngine] Executing: ${command} ${commandArgs.join(" ")}`);
+        if (process.env.RENDER) {
+          console.log(`[DownloadEngine] PATH: ${enhancedEnv.PATH}`);
+          console.log(`[DownloadEngine] PYTHONPATH: ${enhancedEnv.PYTHONPATH || "not set"}`);
+        }
       }
 
       // Spawn process with enhanced PATH and PYTHONPATH
       childProcess = spawn(command, commandArgs, {
         stdio: ["ignore", "pipe", "pipe"],
-        env: getEnhancedEnv(),
+        env: enhancedEnv,
       });
 
       // Collect stdout (JSON data)
@@ -315,14 +321,20 @@ export async function streamVideoFile(
     }, timeout);
 
     try {
-      if (process.env.NODE_ENV === "development") {
+      const enhancedEnv = getEnhancedEnv();
+      
+      if (process.env.NODE_ENV === "development" || process.env.RENDER) {
         console.log(`[DownloadEngine] Streaming: ${command} ${commandArgs.join(" ")}`);
+        if (process.env.RENDER) {
+          console.log(`[DownloadEngine] PATH: ${enhancedEnv.PATH}`);
+          console.log(`[DownloadEngine] PYTHONPATH: ${enhancedEnv.PYTHONPATH || "not set"}`);
+        }
       }
 
       // Spawn process with enhanced PATH and PYTHONPATH
       childProcess = spawn(command, commandArgs, {
         stdio: ["ignore", "pipe", "pipe"],
-        env: getEnhancedEnv(),
+        env: enhancedEnv,
       });
 
       // Collect stderr for error parsing

@@ -190,6 +190,28 @@ export function parseYtDlpError(stderr: string, stdout?: string): ParsedError {
     };
   }
 
+  // Module Not Found Error (yt-dlp not installed)
+  if (
+    errorText.includes("no module named") ||
+    errorText.includes("modulenotfounderror") ||
+    errorText.includes("no module named 'yt_dlp'") ||
+    errorText.includes("no module named \"yt_dlp\"")
+  ) {
+    return {
+      type: ErrorType.UNKNOWN,
+      message: "yt-dlp Python module not found. Installation may have failed or module is in wrong location.",
+      retryable: false,
+      suggestions: [
+        "Verify yt-dlp is installed: python3 -m pip install --user --upgrade yt-dlp",
+        "Check if PYTHONPATH includes user site-packages: $HOME/.local/lib/python3.x/site-packages",
+        "Ensure PATH includes user bin directory: $HOME/.local/bin",
+        "On Render: Check build logs to verify yt-dlp installation succeeded",
+        "Try reinstalling: pip install --user --upgrade yt-dlp",
+      ],
+      originalError: fullError,
+    };
+  }
+
   // Network Error
   if (
     errorText.includes("network") ||
