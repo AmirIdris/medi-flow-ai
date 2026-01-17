@@ -5,6 +5,9 @@ import { signToken, signRefreshToken, setAuthCookies } from "@/lib/jwt";
 import { sendVerificationEmail } from "@/lib/email";
 import { randomBytes } from "crypto";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();

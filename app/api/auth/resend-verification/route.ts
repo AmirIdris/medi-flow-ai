@@ -4,6 +4,9 @@ import { sendVerificationEmail } from "@/lib/email";
 import { randomBytes } from "crypto";
 import { getCurrentUser } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();

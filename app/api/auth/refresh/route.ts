@@ -3,6 +3,9 @@ import { cookies } from "next/headers";
 import { getRefreshToken, verifyRefreshToken, signToken } from "@/lib/jwt";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function POST() {
   try {
     const refreshToken = getRefreshToken();
