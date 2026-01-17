@@ -2,12 +2,9 @@ services:
   - type: web
     name: mediaflow-ai
     env: node
-    # Build command includes yt-dlp installation and updates
-    # Also installs FFmpeg if not available
     buildCommand: |
       npm install && 
-      (python3 -m pip install -U yt-dlp || pip3 install -U yt-dlp || python -m pip install -U yt-dlp || echo 'yt-dlp install skipped') &&
-      (ffmpeg -version || apt-get update && apt-get install -y ffmpeg || echo 'FFmpeg install skipped') &&
+      python3 -m pip install --user --upgrade yt-dlp || pip3 install --user --upgrade yt-dlp || python -m pip install --user --upgrade yt-dlp || echo 'yt-dlp install failed' && 
       npm run build
     startCommand: npm start
     envVars:
@@ -15,6 +12,8 @@ services:
         value: production
       - key: PORT
         value: 3000
+      - key: PATH
+        value: $HOME/.local/bin:$PATH
     # Add these environment variables in Render dashboard:
     # Required:
     # - DATABASE_URL (PostgreSQL connection string)
