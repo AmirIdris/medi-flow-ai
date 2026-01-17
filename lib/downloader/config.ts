@@ -42,25 +42,97 @@ function detectDocker(): boolean {
 }
 
 /**
+ * Get enhanced PATH environment variable
+ * Includes user's local bin directory where pip install --user installs binaries
+ */
+function getEnhancedPath(): string {
+  const userLocalBin = process.env.HOME ? `${process.env.HOME}/.local/bin` : null;
+  const currentPath = process.env.PATH || "";
+  
+  if (userLocalBin && !currentPath.includes(userLocalBin)) {
+    return `${userLocalBin}:${currentPath}`;
+  }
+  
+  return currentPath;
+}
+
+/**
+ * Get enhanced PYTHONPATH environment variable
+ * Includes user's local Python site-packages where pip install --user installs modules
+ */
+function getEnhancedPythonPath(): string {
+  const home = process.env.HOME;
+  if (!home) return process.env.PYTHONPATH || "";
+  
+  // Try to find Python version
+  let pythonVersion = "3.11"; // Default fallback
+  try {
+    const versionOutput = execFileSync("python3", ["--version"], {
+      timeout: 2000,
+      encoding: "utf-8",
+      stdio: "pipe",
+    });
+    const match = versionOutput.match(/Python (\d+\.\d+)/);
+    if (match) {
+      pythonVersion = match[1];
+    }
+  } catch {
+    // Use default
+  }
+  
+  const userSitePackages = `${home}/.local/lib/python${pythonVersion}/site-packages`;
+  const currentPythonPath = process.env.PYTHONPATH || "";
+  
+  if (!currentPythonPath.includes(userSitePackages)) {
+    return currentPythonPath 
+      ? `${userSitePackages}:${currentPythonPath}`
+      : userSitePackages;
+  }
+  
+  return currentPythonPath;
+}
+
+/**
  * Find yt-dlp command
  */
 function findYtDlpCommand(): string[] {
-  // Try direct yt-dlp command first
-  try {
-    execFileSync("yt-dlp", ["--version"], {
-      timeout: 2000,
-      stdio: "ignore",
-    });
-    return ["yt-dlp"];
-  } catch {
-    // Try python -m yt_dlp
+  const enhancedPath = getEnhancedPath();
+  const enhancedEnv = {
+    ...process.env,
+    PATH: enhancedPath,
+    PYTHONPATH: getEnhancedPythonPath(),
+  };
+
+  // Get user's local bin path (where pip install --user installs binaries)
+  const userLocalBin = process.env.HOME ? `${process.env.HOME}/.local/bin` : null;
+
+  // Try direct yt-dlp command first (including user local bin)
+  const ytDlpPaths = [
+    "yt-dlp",
+    ...(userLocalBin ? [`${userLocalBin}/yt-dlp`] : []),
+    "/usr/local/bin/yt-dlp",
+    "/usr/bin/yt-dlp",
+  ];
+
+  for (const ytDlpPath of ytDlpPaths) {
+    try {
+      execFileSync(ytDlpPath, ["--version"], {
+        timeout: 2000,
+        stdio: "ignore",
+        env: enhancedEnv,
+      });
+      return [ytDlpPath];
+    } catch {
+      continue;
+    }
   }
 
-  // Try python3
+  // Try python3 -m yt_dlp with enhanced PATH and PYTHONPATH
   try {
     execFileSync("python3", ["-m", "yt_dlp", "--version"], {
       timeout: 2000,
       stdio: "ignore",
+      env: enhancedEnv,
     });
     return ["python3", "-m", "yt_dlp"];
   } catch {
@@ -71,13 +143,14 @@ function findYtDlpCommand(): string[] {
     execFileSync("python", ["-m", "yt_dlp", "--version"], {
       timeout: 2000,
       stdio: "ignore",
+      env: enhancedEnv,
     });
     return ["python", "-m", "yt_dlp"];
   } catch {
     // Fallback
   }
 
-  // Default fallback
+  // Default fallback - will use enhanced PATH at runtime
   return ["python3", "-m", "yt_dlp"];
 }
 
@@ -210,4 +283,16 @@ export function getConfig(): DownloaderConfig {
     configInstance = getDownloaderConfig();
   }
   return configInstance;
+}
+
+/**
+ * Get enhanced environment variables for spawn/exec calls
+ * Includes PATH and PYTHONPATH with user's local directories
+ */
+export function getEnhancedEnv(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    PATH: getEnhancedPath(),
+    PYTHONPATH: getEnhancedPythonPath(),
+  };
 }

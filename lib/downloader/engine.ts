@@ -6,7 +6,7 @@
 
 import { spawn, ChildProcess } from "child_process";
 import { Readable } from "stream";
-import { getConfig, getBaseYtDlpArgs } from "./config";
+import { getConfig, getBaseYtDlpArgs, getEnhancedEnv } from "./config";
 import { getPlatformHeaders, headersToYtDlpArgs } from "./headers";
 import { getProxyForYtDlp, proxyToYtDlpArgs } from "./proxies";
 import { getCookieFileForYtDlp, cookiesToYtDlpArgs } from "./cookies";
@@ -177,9 +177,10 @@ export async function extractVideoMetadata(options: DownloadOptions): Promise<Do
         console.log(`[DownloadEngine] Executing: ${command} ${commandArgs.join(" ")}`);
       }
 
-      // Spawn process
+      // Spawn process with enhanced PATH and PYTHONPATH
       childProcess = spawn(command, commandArgs, {
         stdio: ["ignore", "pipe", "pipe"],
+        env: getEnhancedEnv(),
       });
 
       // Collect stdout (JSON data)
@@ -318,13 +319,14 @@ export async function streamVideoFile(
         console.log(`[DownloadEngine] Streaming: ${command} ${commandArgs.join(" ")}`);
       }
 
-      // Spawn process
+      // Spawn process with enhanced PATH and PYTHONPATH
       childProcess = spawn(command, commandArgs, {
         stdio: ["ignore", "pipe", "pipe"],
+        env: getEnhancedEnv(),
       });
 
       // Collect stderr for error parsing
-      process.stderr?.on("data", (chunk: Buffer) => {
+      childProcess.stderr?.on("data", (chunk: Buffer) => {
         stderr += chunk.toString();
       });
 
